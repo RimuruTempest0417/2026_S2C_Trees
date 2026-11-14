@@ -69,10 +69,13 @@ git fetch origin
 git rebase origin/develop       # 只 rebase 自己的分支，不要 rebase develop
 ```
 
-- **每天至少 pull 一次**；超過一天沒同步，先 pull 再動手
+- **每次動手改程式前都要同步**（不是每週）：先 `git switch develop && git pull`，確認你是在最新的 `develop` 上開分支
+- **開工時先宣告要改哪些檔案**：開一個 **Draft PR**（或 issue），標題寫 `WIP: 要改什麼`，內文列出會動到的檔案，例如
+  `會改：public/js/map.js、public/css/style.css`
+- **看到對方也在改同一支檔案**：先在 PR 留言講好順序，後改的人負責解 conflict
+- **推送後在 PR 留一句「已推，請 pull」**：對方在 GitHub 會收到通知（`Watch` → `Custom` → 勾 `Pull requests`）
 - **不要 rebase 或 force push `develop` / `main`**（規則會擋，也沒有必要）
 - 分支壽命建議 **3 天內**合併；拖太久 conflict 機率大增
-- 每週一次 15 分鐘同步（線上或當面）：這週各自做了什麼、下週要碰哪些檔案、有沒有要互相等的地方
 
 ### 不要用雲端硬碟同步這個 repo
 
