@@ -18,7 +18,7 @@ const BASE = 256;          // z = 0 時整個世界寬 256px，與 Web Mercator 
 const MIN_Z = 0.6;
 const MAX_Z = 17.5;
 const TREES_MIN_Z = 11;    // 進入澳門範圍才畫樹點，避免低倍率變成一團
-const WORLD_MAX_Z = 8.4;   // 再放大就換成珠三角高解析海岸線；世界國界在 8 級以上過於粗糙
+const WORLD_MAX_Z = 8.4;   // 珠三角（z≥8.5）起改由 .wm-prd 的陸地多邊形接手填色
 const PARISH_MIN_Z = 9.6;
 
 /** 澳門中心（議事亭前地一帶），作為區域座標原點 */
@@ -529,7 +529,7 @@ export function createWorldMap(container, options = {}) {
       `translate(${W / 2} ${H / 2}) scale(${s}) translate(${-view.x} ${-view.y})`);
 
     worldG.style.display = view.z < WORLD_MAX_Z ? '' : 'none';
-    prdG.style.display = view.z >= 5.4 && view.z <= 12.5 ? '' : 'none';
+    prdG.style.display = view.z >= 5.4 && view.z <= 13.6 ? '' : 'none';
     parishG.style.display = view.z >= PARISH_MIN_Z ? '' : 'none';
     treeG.style.display = view.z >= TREES_MIN_Z ? '' : 'none';
     if (pinEl && pinPos) {

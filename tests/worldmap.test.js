@@ -161,3 +161,16 @@ test('index.html 未被改壞：模組入口、檢視容器與彈窗都還在', 
   const tags = html.split('<script').slice(1).map((p) => p.slice(0, p.indexOf('>') + 1));
   assert.ok(tags.every((t) => t.includes('src=')), 'index.html 不應出現內嵌 script');
 });
+
+// 迴歸：v1.2.0 的 .wm-prd 是 fill: none，而國家填色在 z≥8.4 就被收掉，
+// 於是「珠江三角洲」倍率整片只剩空心海岸線，看起來像地圖沒載入。
+test('中倍率有陸地底圖：珠三角多邊形必須填色，不可只剩空心海岸線', () => {
+  const prd = css.match(/\.wm-prd \{[^}]*\}/);
+  assert.ok(prd, '找不到 .wm-prd 樣式');
+  assert.ok(!/\bfill:\s*none/.test(prd[0]), '.wm-prd 不可 fill: none（會讓中倍率變成空心線）');
+  assert.match(prd[0], /fill:\s*(color-mix|var\()/, '.wm-prd 應有填色');
+  // 珠三角圖層要撐到「澳門全境」之後才收起，否則中倍率會沒有陸地
+  const m = worldmap.match(/prdG\.style\.display = view\.z >= 5\.4 && view\.z <= ([\d.]+)/);
+  assert.ok(m, '找不到 prd 圖層顯示範圍');
+  assert.ok(Number(m[1]) >= 12.5, `珠三角圖層應延伸到 ≥12.5，實際 ${m[1]}`);
+});
