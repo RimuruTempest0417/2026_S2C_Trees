@@ -16,8 +16,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url))) + path.sep;
 const PARTNER = `${ROOT}public/partner`;
 const html = readFileSync(`${PARTNER}/index.html`, 'utf8');
 const js = readFileSync(`${PARTNER}/app.js`, 'utf8');
