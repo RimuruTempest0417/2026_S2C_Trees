@@ -21,6 +21,14 @@ const TREES_MIN_Z = 11;    // 進入澳門範圍才畫樹點，避免低倍率�
 const WORLD_MAX_Z = 8.4;   // 珠三角（z≥8.5）起改由 .wm-prd 的陸地多邊形接手填色
 const PARISH_MIN_Z = 9.6;
 
+// ── 衛星影像圖磚（連線時疊在示意圖下方；離線／被封鎖就自動退回示意圖）──
+// 只接 ArcGIS World Imagery 這一個來源：專案的 CSP（vercel.json 的 img-src）本來就放行
+// server.arcgisonline.com，和「平面地圖」用的是同一組圖源。
+const TILE_MIN_Z = 8.5;       // 珠三角倍率起才疊；再低倍的衛星圖只有雲和海，示意圖更清楚
+const TILE_TO_MAX_ZOOM = 17;  // ArcGIS 在澳門一帶可到 17 級
+const TILE_LIMIT = 240;       // 同時存在的圖磚上限，避免長距離拖曳把記憶體吃光
+const TILE_RETRY_MS = 30000;  // 連續失敗後的冷卻時間（離線時不要每幀重試）
+const TILE_URL = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
 /** 澳門中心（議事亭前地一帶），作為區域座標原點 */
 const ORIGIN = merc(113.5540, 22.1630);
 
@@ -247,13 +255,14 @@ export function createWorldMap(container, options = {}) {
     'aria-label': '澳門古樹世界地圖，可從世界縮放至珠江三角洲、澳門各堂區與單棵古樹',
   });
   const space = svgEl('g', { class: 'wm-space' });
+  const tileG = svgEl('g', { class: 'wm-tiles' });
   const worldG = svgEl('g', { class: 'wm-world' });
   const prdG = svgEl('g', { class: 'wm-prd-layer' });
   const parishG = svgEl('g', { class: 'wm-parishes' });
   const labelG = svgEl('g', { class: 'wm-labels' });
   const pinG = svgEl('g', { class: 'wm-pins' });
   const treeG = svgEl('g', { class: 'wm-trees' });
-  space.append(worldG, prdG, parishG, treeG, labelG, pinG);
+  space.append(tileG, worldG, prdG, parishG, treeG, labelG, pinG);
   let pinEl = null;
   let pinPos = null;
   svg.appendChild(space);
@@ -264,6 +273,13 @@ export function createWorldMap(container, options = {}) {
   status.setAttribute('role', 'status');
   status.textContent = '載入世界地理資料…';
   container.appendChild(status);
+
+  // 衛星影像的署名（Esri 要求）；只有圖磚真的顯示時才出現
+  const attrib = document.createElement('p');
+  attrib.className = 'wm-attrib';
+  attrib.textContent = '衛星影像 © Esri、Maxar、Earthstar Geographics';
+  attrib.hidden = true;
+  container.appendChild(attrib);
 
   const controls = document.createElement('div');
   controls.className = 'wm-controls';
@@ -518,6 +534,100 @@ export function createWorldMap(container, options = {}) {
       : `${level} · 縮放或按「定位澳門」查看古樹`;
   }
 
+  // ── 衛星影像圖磚 ─────────────────────────────────────────
+  // 圖磚放在 space 群組最底層：連線時衛星影像透出來，陸地只剩半透明填色＋輪廓；
+  // 一旦抓不到圖磚（離線、CSP 被改、圖磚服務掛掉），就退回原本的示意圖填色。
+  const tileEls = new Map();
+  let tilesLoaded = 0;
+  let tilesFailed = 0;
+  let tileRetryAt = 0;
+  let tilesOn = false;
+
+  function setTilesOn(on) {
+    if (tilesOn === on) return;
+    tilesOn = on;
+    container.classList.toggle('has-tiles', on);
+    attrib.hidden = !on;
+  }
+
+  function clearTiles() {
+    for (const el of tileEls.values()) el.remove();
+    tileEls.clear();
+  }
+
+  function onTileLoad() {
+    tilesLoaded += 1;
+    setTilesOn(true);
+  }
+
+  function onTileError(ev) {
+    tilesFailed += 1;
+    if (ev && ev.currentTarget) ev.currentTarget.remove();
+    // 失敗比成功還多：多半是離線或圖磚被擋，關掉圖磚並進入冷卻，畫面回到示意圖
+    if (tilesFailed >= 3 && tilesFailed >= tilesLoaded) {
+      tileRetryAt = Date.now() + TILE_RETRY_MS;
+      clearTiles();
+      setTilesOn(false);
+    }
+  }
+
+  function paintTiles() {
+    const want = !dead && view.z >= TILE_MIN_Z && Date.now() >= tileRetryAt;
+    tileG.style.display = want ? '' : 'none';
+    if (!want) {
+      if (tileEls.size) clearTiles();
+      return;
+    }
+    const s = scale();
+    const halfW = W / 2 / s;
+    const halfH = H / 2 / s;
+    const tz = clamp(Math.round(view.z), 0, TILE_TO_MAX_ZOOM);
+    const n = 2 ** tz;
+    const tx0 = Math.floor((view.x - halfW + ORIGIN.x) * n);
+    const tx1 = Math.floor((view.x + halfW + ORIGIN.x) * n);
+    const ty0 = Math.floor((view.y - halfH + ORIGIN.y) * n);
+    const ty1 = Math.floor((view.y + halfH + ORIGIN.y) * n);
+    const keep = new Set();
+    for (let tx = tx0; tx <= tx1 && tileEls.size < TILE_LIMIT; tx += 1) {
+      if (tx < 0 || tx >= n) continue;
+      for (let ty = ty0; ty <= ty1; ty += 1) {
+        if (ty < 0 || ty >= n) continue;
+        const key = `${tz}/${tx}/${ty}`;
+        keep.add(key);
+        if (tileEls.has(key)) continue;
+        const url = TILE_URL(tz, tx, ty);
+        const img = svgEl('image', {
+          class: 'wm-tile',
+          x: (tx / n - ORIGIN.x).toFixed(9),
+          y: (ty / n - ORIGIN.y).toFixed(9),
+          width: (1 / n).toFixed(9),
+          height: (1 / n).toFixed(9),
+          preserveAspectRatio: 'none',
+          href: url,
+        });
+        img.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', url);  // 舊版 Safari
+        img.addEventListener('load', onTileLoad);
+        img.addEventListener('error', onTileError);
+        tileG.appendChild(img);
+        tileEls.set(key, img);
+      }
+    }
+    for (const [key, el] of tileEls) {
+      if (!keep.has(key)) {
+        el.remove();
+        tileEls.delete(key);
+      }
+    }
+  }
+
+  // 恢復連線後不必等冷卻，下一次繪製就重抓圖磚
+  function onOnline() {
+    tileRetryAt = 0;
+    tilesFailed = 0;
+    paint();
+  }
+  window.addEventListener('online', onOnline);
+
   function paint() {
     if (dead || !geo) return;
     if (!W || !H) measure();
@@ -532,6 +642,7 @@ export function createWorldMap(container, options = {}) {
     prdG.style.display = view.z >= 5.4 && view.z <= 13.6 ? '' : 'none';
     parishG.style.display = view.z >= PARISH_MIN_Z ? '' : 'none';
     treeG.style.display = view.z >= TREES_MIN_Z ? '' : 'none';
+    paintTiles();
     if (pinEl && pinPos) {
       // 世界／洲際／東亞倍率顯示澳門定位點；進入澳門後就交給堂區與樹點
       const showPin = view.z < PARISH_MIN_Z;
@@ -742,6 +853,9 @@ export function createWorldMap(container, options = {}) {
     if (dead) return;
     dead = true;
     controller.abort();
+    window.removeEventListener('online', onOnline);
+    clearTiles();
+    setTilesOn(false);
     if (ro) ro.disconnect();
     container.replaceChildren();
     container.classList.remove('worldmap');
