@@ -419,9 +419,11 @@ table.table th + th, table.table td + td { border-left: 1px solid color-mix(in s
 }
 .wm-pin:hover .wm-pin-halo { fill-opacity: .3; }
 .wm-prd {
-  /* 珠三角資料是一個「海岸線＋外框」的概略輪廓，填色會蓋住整個海面，
-     因此只畫外框，讓中倍率仍看得見底下的國家與海岸線 */
-  fill: none;
+  /* 珠三角資料本身是閉合的陸地多邊形（廣東陸地＋27 個島），可以直接填色；
+     以前的註解誤以為「填色會蓋住海面」，導致 z 8.5–12.4 只剩空心海岸線，
+     看起來像地圖沒載入。填色後這一層就是中倍率的陸地底圖。 */
+  fill: color-mix(in srgb, var(--green-100) 42%, var(--card));
+  fill-opacity: .9;
   stroke: var(--green-600); stroke-width: 1.1; stroke-opacity: .8; vector-effect: non-scaling-stroke;
 }
 .wm-parish {
