@@ -26,3 +26,6 @@ prof-*/
 public/partner/相片/* 2.jpg
 * 2.js
 * 2.md
+
+# Cloudflare wrangler 本機狀態
+.wrangler/

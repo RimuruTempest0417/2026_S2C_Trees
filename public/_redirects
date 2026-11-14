@@ -1,0 +1,2 @@
+# P1：靜態站放 Cloudflare Pages；/api/* 由 functions/api/[[route]].js 轉給現有 Vercel。
+# （Pages 的 _redirects 不能代理到外部網域，所以不能用 rewrite 解決。P2 移植完成後刪掉那支 Function）

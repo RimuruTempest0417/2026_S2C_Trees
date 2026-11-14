@@ -1,0 +1,8 @@
+# Cloudflare Pages 專案設定（免費方案即可）
+# 部署：npx wrangler pages deploy public --project-name=2026-s2c-trees
+name = "2026-s2c-trees"
+compatibility_date = "2026-11-01"
+pages_build_output_dir = "public"
+
+# P1（靜態站）階段：API 仍留在 Vercel，由 public/_redirects 反向代理過去。
+# P2 完成後再把 functions/ 目錄加進來、移除那條代理。

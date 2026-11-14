@@ -195,6 +195,8 @@ test('平面地圖提供街道圖／衛星影像底圖切換（沿用 CSP 已放
   const vercelJson = readFileSync(`${ROOT}vercel.json`, 'utf8');
   assert.ok(vercelJson.includes('server.arcgisonline.com'), 'CSP 的 img-src 必須放行 arcgisonline');
   assert.ok(vercelJson.includes('tile.openstreetmap.org'), 'CSP 的 img-src 必須放行 openstreetmap');
+});
+
 // 迴歸：v1.2.0 的 .wm-prd 是 fill: none，而國家填色在 z≥8.4 就被收掉，
 // 於是「珠江三角洲」倍率整片只剩空心海岸線，看起來像地圖沒載入。
 test('中倍率有陸地底圖：珠三角多邊形必須填色，不可只剩空心海岸線', () => {
