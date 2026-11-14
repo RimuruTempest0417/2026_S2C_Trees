@@ -100,9 +100,9 @@ async function initSourceBadge() {
     const meta = await cached('meta', () => api.meta());
     const s = meta.site;
     const module = meta.module || 'unknown';
-    if (s.data_source === 'supabase') {
+    if (s.data_source === 'neon') {
       badge.className = 'badge badge-good';
-      badge.textContent = `Supabase 已連線・${s.counts.trees} 筆`;
+      badge.textContent = `資料庫已連線・${s.counts.trees} 筆`;
       badge.title = `${s.note}\n資料集：${s.dataset}`;
     } else {
       badge.className = 'badge badge-fair';
@@ -110,13 +110,13 @@ async function initSourceBadge() {
       badge.title = s.note;
     }
     // 讓示範模式在畫面上明顯可見
-    if (s.data_source !== 'supabase') {
+    if (s.data_source !== 'neon') {
       const banner = document.createElement('div');
       banner.className = 'notice';
       banner.style.margin = '1rem auto 0';
       banner.style.maxWidth = 'var(--maxw)';
       banner.innerHTML = `<strong>資料來源：</strong>${esc(s.note)}`
-        + ' 於部署環境設定資料庫連線環境變數（見 README 的「連接 Supabase」一節）後，即會改讀 Supabase PostgreSQL。';
+        + ' 於部署環境設定 DATABASE_URL（見 README 的「連接 Neon」一節）後，即會改讀 Neon PostgreSQL。';
       document.querySelector('main').prepend(banner);
     }
   } catch (err) {

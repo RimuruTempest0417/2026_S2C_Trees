@@ -2,13 +2,15 @@
 
 以《古樹保育研究(1).docx》所列題目為綱，把 **658 株澳門古樹名木**整理成一個可查詢、可分析、可導覽的資料庫網站。
 
-- **資料庫**：Supabase（PostgreSQL 15+）
+- **資料庫**：Neon（PostgreSQL 17，`@neondatabase/serverless` HTTP driver）
 - **部署**：Vercel Serverless Functions（`/api/*`）＋ 靜態前端（`public/`）
 - **前端**：原生 ES Modules、Leaflet（地圖）、Chart.js（圖表）、KaTeX ＋ marked（科普文章）
 - **原始資料**：`source-data/古樹.csv`（658 筆）、**澳門市政署「澳門自然網」古樹名木專頁（658 筆逐株資料與官方照片）**、《古樹保育研究(1).docx》（需求文件）
 
-[![每日擷取官方古樹名錄](https://github.com/RimuruTempest0417/old_trees/actions/workflows/refresh-official-data.yml/badge.svg)](https://github.com/RimuruTempest0417/old_trees/actions/workflows/refresh-official-data.yml)
+[![每日擷取官方古樹名錄](https://github.com/RimuruTempest0417/2026_S2C_Trees/actions/workflows/refresh-official-data.yml/badge.svg)](https://github.com/RimuruTempest0417/2026_S2C_Trees/actions/workflows/refresh-official-data.yml)
 [![線上網站](https://img.shields.io/badge/%E7%B7%9A%E4%B8%8A%E7%B6%B2%E7%AB%99-old--trees--mylearning.vercel.app-2ea44f)](https://old-trees-mylearning.vercel.app)
+
+> 想參與開發？先讀 [CONTRIBUTING.md](./CONTRIBUTING.md)：分支模型、PR 規則、送 PR 前要跑的測試。
 
 ---
 
@@ -17,11 +19,11 @@
 1. [線上功能](#一線上功能)
 2. [需求對照表](#二需求對照表docx-第-1--24-題)
 3. [系統架構](#三系統架構)
-4. [資料庫設計Supabase--postgresql](#四資料庫設計supabase--postgresql)
+4. [資料庫設計Neon--postgresql](#四資料庫設計neon--postgresql)
 5. [API 端點](#五api-端點)
 6. [統計與演算法方法論](#六統計與演算法方法論)
 7. [本機開發](#七本機開發)
-8. [連接 Supabase](#八連接-supabase)
+8. [連接 Neon](#八連接-neon)
 9. [部署到 Vercel](#九部署到-vercel)
 10. [測試與驗證](#十測試與驗證)
 11. [離線使用與安裝（PWA）](#十一離線使用與安裝pwa)
@@ -62,8 +64,8 @@
 | **政策方案** | **要求 4 的網站化呈現**：城市綠化／環保節能／文旅文創三個方向，每個方向寫出**政策依據**（法令資料庫、市政署、環保局、文化局、旅遊局、教青局、立法會與兩篇學術文獻，共 23 個來源，可點開原文）、**具體行動**（做什麼／誰負責／合作單位／在哪裡／成功指標／期程／成本概念，共 10 項）、**以本站 658 株官方資料排出的優先順序**，以及**「本頁沒有的東西」**（官方沒有城市樹木降溫與逐株碳匯數字等 7 項缺口）；支援複製摘要與匯出行動清單 CSV |
 | **保育科普** | 12 篇繁體中文專題文章（含 KaTeX 數學式）、立法時間線、每篇附參考來源 |
 
-> **實地考察紀錄的儲存方式**：連接 Supabase 時寫入 `field_records` 資料表（所有人可見），現場照片由伺服器端
-> 上傳到 Storage 的 `field-photos` bucket（bucket 由 `supabase/init.sql` 建立，公開唯讀、寫入一律經 `service_role`）；
+> **實地考察紀錄的儲存方式**：連接資料庫時寫入 `field_records` 資料表（所有人可見），現場照片由伺服器端
+> 上傳到 Storage 的 `field-photos` bucket（bucket 由 `db/001_schema.sql` 建立，公開唯讀、寫入一律經 `service_role`）；
 > 未連接資料庫（示範模式）時，畫面會明確標示「只暫存在這台裝置的瀏覽器」，照片也只留在該裝置，**不假裝已寫入或已上傳**。
 
 ### 相片
@@ -125,7 +127,7 @@
 2. **座標補齊**：127 個地點先以 OSM Nominatim 地理編碼，無法匹配者人工校核填入 `data/manual_coords.json`，確保每株古樹都能定位。
 3. **行動裝置優先的互動**：地圖為主的查詢介面 ＋ 可捲動結果清單，兩者雙向同步。
 4. **統計誠實原則**：模型以決定係數與 RMSE 客觀比較，**負的 R² 照實顯示**（代表該模型比用平均值更差），不挑好看的回報。
-5. **金鑰不落地**：前端只呼叫自家 `/api`，Supabase 服務金鑰只存在於 Vercel 環境變數。
+5. **金鑰不落地**：前端只呼叫自家 `/api`，資料庫連線字串只存在於 Vercel 環境變數。
 
 ### 裝置適配（深淺色模式與手機瀏覽器）
 
@@ -153,13 +155,13 @@
 Vercel Serverless Function（api/[[...route]].js，唯一入口，Node.js 20+）
    │  lib/router.js  路由分派（本機 dev-server 也用同一套）
    │  lib/repo.js    資料存取層（雙驅動）
-   ├──► Supabase PostgreSQL ── 正式模式
-   │      （supabase-js ＋ service_role，僅在伺服器端）
+   ├──► Neon PostgreSQL ── 正式模式
+   │      （@neondatabase/serverless（連線字串僅在伺服器端））
    └──► data/snapshot.json ── 示範模式（未設環境變數時）
 ```
 
 - **為什麼只有一個 Function**：Vercel Hobby 方案限制「每個 Deployment 最多 12 個 Serverless Function」，而 `api/` 底下每個 `.js` 都算一個。原本 12 個端點 ＋ 1 個動態路由 = 13 個，部署會直接失敗（`No more than 12 Serverless Functions can be added to a Deployment`）。因此把所有 handler 移到 `lib/routes/`（`lib/` 不算 Function），`api/` 只留萬用入口 `api/[[...route]].js`，由 `lib/router.js` 分派——端點網址完全不變。
-- **無 SQLite**：資料庫只有 Supabase（PostgreSQL）一種；`data/snapshot.json` 是同源唯讀快照，讓專案在沒有資料庫連線時仍可完整展示，並非替代資料庫。
+- **無 SQLite**：資料庫只有 Neon（PostgreSQL）一種；`data/snapshot.json` 是同源唯讀快照，讓專案在沒有資料庫連線時仍可完整展示，並非替代資料庫。
 - **前端零依賴外部 CDN**：Leaflet、Chart.js、marked、KaTeX、qrcode-generator（二維碼）全部置於 `public/vendor/`（`node scripts/vendor.mjs` 可重建；`scripts/` 下有來源與授權說明）。
 
 ### 目錄結構
@@ -179,8 +181,9 @@ macau-heritage-trees/
 │   ├── js/priority.js      優先保育名單分頁（名次表、篩選、CSV、列印入口）
 │   ├── js/monitoring.js    監測分頁（概況、單株時間序列、逐次差異、趨勢圖、異常清單）
 │   └── photos/trees/       658 張古樹官方照片（市政署，縮圖）
-├── supabase/
-│   ├── schema.sql          資料表、檢視表、RPC、RLS、版本升級段落（可直接貼進 Supabase SQL Editor）
+├── db/
+│   └── 001_schema.sql      資料表、檢視表、RPC、種子資料（Neon 用，可重複執行）
+├── supabase/               v1.1.0 以前的 Supabase 版綱要，僅供歷史對照
 │   ├── seed.sql            658 筆古樹（含官方座標／照片／描述）＋ 品種 ＋ 地點 ＋ 文章 ＋ 時間線
 │   └── init.sql            schema.sql ＋ seed.sql 合併檔（一鍵初始化）
 ├── data/                   建置產物（snapshot.json、iam_trees.json、conservation.json、species.json…）
@@ -193,9 +196,9 @@ macau-heritage-trees/
 
 ---
 
-## 四、資料庫設計（Supabase / PostgreSQL）
+## 四、資料庫設計（Neon / PostgreSQL）
 
-`supabase/schema.sql` 內含 8 張表、3 個檢視表、6 個函式，可整體重複執行（idempotent）。
+`db/001_schema.sql` 內含 8 張表、3 個檢視表、6 個函式，可整體重複執行（idempotent）。
 
 ### 資料表
 
@@ -264,7 +267,7 @@ macau-heritage-trees/
 `health`（僅接受「健康」「一般」「瀕危」）、`height_m`（0–100）、`diameter_cm`（0–1000）、`crown_m`（0–100）、
 `site_note`／`damage_note`（≤600 字）、`photo_url`、`lat`／`lon`。超出長度一律截斷、非數值一律視為未填。
 
-**結構化觀察欄位（v0.13.0）**——同一組選項寫在三處（前端勾選欄、`lib/repo.js` 常數、`supabase/schema.sql` 的 CHECK），
+**結構化觀察欄位（v0.13.0）**——同一組選項寫在三處（前端勾選欄、`lib/repo.js` 常數、`db/001_schema.sql` 的 CHECK），
 `tests/field.test.js` 會比對三邊是否一致，前端送得出、資料庫就不會擋掉：
 
 | 欄位 | 型別 | 允許值 |
@@ -338,7 +341,7 @@ npm run dev            # http://localhost:3311（模擬 Vercel：靜態檔案 �
 python3 scripts/fetch_iam.py        # 抓市政署官方古樹資料（658 筆）與官方照片到 data/、public/photos/trees/
 python3 scripts/geocode.py          # OSM Nominatim 地理編碼（含快取；官方座標已覆蓋大部分）
 python3 scripts/content.py          # 產生科普文章與時間線
-python3 scripts/build_seed.py       # 產生 supabase/seed.sql 與 data/snapshot.json
+python3 scripts/build_seed.py       # 產生 db/001_schema.sql（種子段） 與 data/snapshot.json
 node  scripts/vendor.mjs            # 複製前端第三方函式庫到 public/vendor/
 ```
 
@@ -362,7 +365,7 @@ node  scripts/vendor.mjs            # 複製前端第三方函式庫到 public/v
 | `vendor.mjs` | 把前端第三方函式庫複製到 `public/vendor/` 並附加授權標頭 | 昇版 Leaflet／Chart.js／marked 等時 |
 | `fetch_iam.py` | 抓市政署自然網官方古樹資料與官方照片（658 筆，具續傳） | 重建 `data/`、要更新官方資料時 |
 | `content.py` | 產生科普文章與時間線內容 | 重建 `data/` |
-| `build_seed.py` | 產生 `supabase/seed.sql` 與 `data/snapshot.json` | 重建 `data/` |
+| `build_seed.py` | 產生 `db/001_schema.sql（種子段）` 與 `data/snapshot.json` | 重建 `data/` |
 | `geocode.py` | 以 OSM Nominatim 對《名錄》地點做地理編碼（附快取） | 官方資料出現新地點時（補座標） |
 | `fetch_site_photos.py` | 為每個古樹**地點**抓一張實地相片（`public/photos/sites/`） | 有新的地點時 |
 | `fetch_species.py` | 查 Wikidata 取得每個品種的學名與相片（含授權標示） | 有新品種時 |
@@ -370,7 +373,7 @@ node  scripts/vendor.mjs            # 複製前端第三方函式庫到 public/v
 | `gen-data-meta.mjs` | 產生官方資料履歷（`lib/data-meta.js`，附內容雜湊） | `data/` 更新後；`npm test` 會驗 |
 | `gen-env-chem.mjs` | 由 `data/env_chem.json` 產生前端用的 `data/env-chem-data.js` | 改環境數據後；`npm test` 會驗 |
 | `gen-policy.mjs` | 由 `data/policy.json` 產生 `data/policy-data.js` | 改政策方案後；`npm test` 會驗 |
-| `gen-init-sql.mjs` | 合併 `schema.sql` ＋ `seed.sql` 成 `supabase/init.sql`（含 `--check`） | 改資料庫結構後；`npm test` 會驗 |
+| `gen-init-sql.mjs` | 合併 `schema.sql` ＋ `seed.sql` 成 `db/001_schema.sql`（含 `--check`） | 改資料庫結構後；`npm test` 會驗 |
 | `gen_upgrade_sql.py` | 產生舊版資料庫的就地升級語句（缺欄位／缺表／舊 CHECK） | 改資料庫結構後（與上一支一起） |
 | `snapshot-observations.mjs` | 把官方資料現況存成一份帶日期的快照，供監測時間序列比對（含 `--check`） | 官方資料有變動時；`npm test` 會驗 |
 | `qr-roundtrip.mjs` | 產生二維碼 SVG 並用無頭 Chrome 轉成 PNG（輸出到 `.qr-check/`） | `npm run qr:verify` 的第一步 |
@@ -386,38 +389,38 @@ node  scripts/vendor.mjs            # 複製前端第三方函式庫到 public/v
 
 ---
 
-## 八、連接 Supabase
+## 八、連接 Neon
 
-1. 在 [Supabase](https://supabase.com) 建立專案。
-2. 打開 **SQL Editor → New query**，貼上 **`supabase/init.sql`**（`schema.sql` ＋ `seed.sql` 的合併檔，由 `npm run build:init` 產生）並按 **Run**——
+1. 在 [Neon](https://console.neon.tech) 建立專案（PostgreSQL 17，區域建議 ap-southeast-1）。
+2. 打開 **SQL Editor → New query**，貼上 **`db/001_schema.sql`**（`schema.sql` ＋ `seed.sql` 的合併檔，由 `npm run build:init` 產生）並按 **Run**——
    一次就會建立 7 張表、3 個檢視表、6 個 RPC、RLS 政策，並匯入 658 筆古樹。
-   （若偏好分開執行，也可先跑 `supabase/schema.sql` 再跑 `supabase/seed.sql`。）
+   （若偏好分開執行，也可先跑 `db/001_schema.sql` 再跑 `db/001_schema.sql（種子段）`。）
 3. 到 **Project Settings → API** 取得 `Project URL` 與 `service_role` 金鑰。
 4. 在 Vercel 專案設定環境變數：
 
 | 變數 | 說明 |
 | --- | --- |
-| `SUPABASE_URL` | `https://<project-ref>.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | service_role 金鑰（**只在伺服器端使用，切勿放進前端**） |
-| `DATA_SOURCE` | 選填，`supabase` 或 `snapshot`；預設自動判斷 |
+| `DATABASE_URL` | `postgresql://…@ep-xxx.ap-southeast-1.aws.neon.tech/neondb`（Neon 連線字串） |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob 讀寫權杖（現場照片；**只在伺服器端使用**） |
+| `DATA_SOURCE` | 選填，`neon` 或 `snapshot`；預設自動判斷 |
 
-設定後 `/api/health` 的 `data_source` 會變成 `supabase`，網站上的「示範模式」提示會消失。
+設定後 `/api/health` 的 `data_source` 會變成 `neon`，網站上的「示範模式」提示會消失。
 
 > **資料庫已經跑過舊版 init.sql 怎麼辦？** `create table if not exists` 對已存在的舊表**不會**補欄位，
 > 因此在舊資料庫上再貼一次新版 `init.sql` 時，seed 會出現
 > `column "geo_precision" of relation "public.trees" does not exist` 而整段回滾（資料不會壞，只是沒更新）。
 > 目前版本的 `schema.sql`／`init.sql` 開頭已有一段**版本升級**（`alter table if exists … add column if not exists …`，
 > 共 8 張表、89 個欄位），會就地補齊缺少的欄位並保留預設值，可安全重複執行。
-> 直接把最新 `supabase/init.sql` 重新貼上執行即可，**不需要**刪表重建，實地考察紀錄也不會遺失。
+> 直接把最新 `db/001_schema.sql` 重新貼上執行即可，**不需要**刪表重建，實地考察紀錄也不會遺失。
 >
 > v0.13.0 起 `init.sql` 也會一併建立 Storage 的 `field-photos` bucket（公開唯讀），
 > 現場照片就是上傳到那裡；**舊版的資料庫一定要再跑一次**，否則照片上傳會回
-> 「儲存空間（field-photos）還不存在」。這一段以 `information_schema` 守衛，只有在真的 Supabase
+> 「儲存空間（field-photos）還不存在」。這一段以 `information_schema` 守衛，只有在真的 PostgreSQL
 > 環境（有 `storage` schema）才會執行，本機測試用的 PGlite 會自動跳過。
 
-> **金鑰安全**：`.env`、`.env.local` 已列入 `.gitignore`；前端程式碼不含任何 Supabase 端點或金鑰（由 `tests/api-security.test.js` 自動驗證）。
+> **金鑰安全**：`.env`、`.env.local` 已列入 `.gitignore`；前端程式碼不含任何資料庫端點或金鑰（由 `tests/api-security.test.js` 自動驗證）。
 >
-> **若金鑰曾出現在版本庫**：`.env.example` 只放佔位符，切勿填入真實值——這個檔案會提交到 GitHub，一旦推送就收不回來（歷史紀錄仍留有該 blob）。處理順序：(1) 把檔案改回佔位符並推送；(2) 立刻到 Supabase Dashboard → Project Settings → API 輪換 `anon` 與 `service_role` 金鑰；(3) 更新 Vercel 環境變數並重新部署。**輪換才是真正的補救，改檔案只是止血。** `tests/secrets.test.js` 會在下次不小心再犯時擋下來。
+> **若金鑰曾出現在版本庫**：`.env.example` 只放佔位符，切勿填入真實值——這個檔案會提交到 GitHub，一旦推送就收不回來（歷史紀錄仍留有該 blob）。處理順序：(1) 把檔案改回佔位符並推送；(2) 立刻輪換該資料庫憑證（本專案已於 v1.1.0 遷離 Supabase；舊金鑰會隨專案刪除而失效）→ API 輪換 `anon` 與 `service_role` 金鑰；(3) 更新 Vercel 環境變數並重新部署。**輪換才是真正的補救，改檔案只是止血。** `tests/secrets.test.js` 會在下次不小心再犯時擋下來。
 
 ---
 
@@ -425,9 +428,9 @@ node  scripts/vendor.mjs            # 複製前端第三方函式庫到 public/v
 
 **方式 A：從 GitHub 匯入（推薦，之後每次 push 自動部署）**
 
-1. 到 [vercel.com/new](https://vercel.com/new)，選擇 GitHub 倉庫 `RimuruTempest0417/old_trees`。
+1. 到 [vercel.com/new](https://vercel.com/new)，選擇 GitHub 倉庫 `RimuruTempest0417/2026_S2C_Trees`。
 2. Framework Preset 選 **Other**，Root Directory 保持預設（`./`），Build Command 與 Output Directory **全部留空**——`vercel.json` 已設定 `framework: null` 與 `outputDirectory: public`，會自動套用。
-3. 在 **Environment Variables** 加入 `SUPABASE_URL` 與 `SUPABASE_SERVICE_ROLE_KEY`。
+3. 在 **Environment Variables** 加入 `DATABASE_URL`（Neon）與 `BLOB_READ_WRITE_TOKEN`（Vercel Blob 會自動建立）。
 4. 按 **Deploy**。之後每次 push 到 `main` 都會自動重新部署。
 
 **方式 B：使用 CLI**
@@ -469,13 +472,13 @@ npm run verify         # check ＋ test
 | `tests/env-chem.test.js` | **化學視角與環境數據**：資料層完整性（六站 × 六污染物 × 兩年、每一項都要有官方出處、數值範圍合理、CO 以 mg/m³ 為單位）、**酸雨段落必須明說「本站找不到近年官方值」**（不得留白或編造）、機制的化學式與文獻 id 互相對得上（來源索引由後端統一組好）、`overview()` 的官方年平均標準達標判定、區域背景（堂區→區域→官方監測站；未知堂區回 null）、古樹 × 區域（各區株數加總＝658、**各區平均樹齡必須顯示**——樹齡是健康差異的干擾因素）、API 契約與錯誤處理（未知區域 404、沒有資料的年份 400、壞的污染物 400）、**官方年均值必須顯示到小數第一位**（曾把 17.3 印成 17）、前端接線（分頁／VIEWS／TITLES／稽核清單／單株詳情的區域背景）、**`init.sql` 必須已重新產生且含新分類**（防止忘了重跑產生器） | 16 |
 | `tests/sql.test.js` | **以 PGlite（PostgreSQL 16 WASM）實跑 `schema.sql` ＋ `seed.sql` ＋ `init.sql`**，驗證檢視表、RPC、RLS 政策、一鍵初始化檔、**舊版資料庫就地升級**（缺欄位／缺表／舊 CHECK 跑一次即可補齊；重新初始化種子資料不會清掉實地考察紀錄）、**官方胸徑／胸圍入庫與多主幹株數**，以及**健康檢查探測清單與綱要一致**（逐一在真資料庫上執行探測查詢，避免誤報「資料庫需要升級」） | 33 |
 | `tests/api.test.js` | 啟動真實伺服器打 13 個端點，對照 CSV 直接計算的結果，檢查內部一致性（含 `/api/tree?no=` 與路徑形式一致、**官方胸徑／胸圍**、**主題路綫一定要產生停靠站**） | 16 |
-| `tests/supabase-path.test.js` | **Supabase 模式的查詢形狀**：以假的 `fetch` 攔截 PostgREST 請求，驗證 `allTrees()` 送出的欄位含座標（線上事故：曾誤用只回散佈圖欄位的 `rpc_scatter`，候選古樹全被濾掉，路綫推薦回 `route: null`）；**官方值優先也要在 Supabase 模式成立**（查詢必須取 `official_grade`／`official_health`；用官方分級／健康狀況篩選時，SQL 端不得再帶該條件，改由 JS 以顯示值篩選，否則會漏掉 #1132 這種名錄值與官方現行值不同的株；**`getTree()` 也必須走正常化**——Supabase 分支曾繞過 `normalizeTreeRow()`，導致線上單株詳情仍顯示《名錄》舊分級，而本機示範模式測不到）；**樹齡**：查詢要取 `official_age_years`，且年齡區間條件不得交給 SQL（否則用 115–120 年會漏掉 DB 寫 155 年的 #619） | 6 |
+| `tests/db-path.test.js` | **Neon 模式的查詢形狀**：以假的 `fetch` 攔截 Neon `/sql` 請求，驗證 `allTrees()` 送出的欄位含座標（線上事故：曾誤用只回散佈圖欄位的 `rpc_scatter`，候選古樹全被濾掉，路綫推薦回 `route: null`）；**官方值優先也要在 Supabase 模式成立**（查詢必須取 `official_grade`／`official_health`；用官方分級／健康狀況篩選時，SQL 端不得再帶該條件，改由 JS 以顯示值篩選，否則會漏掉 #1132 這種名錄值與官方現行值不同的株；**`getTree()` 也必須走正常化**——Supabase 分支曾繞過 `normalizeTreeRow()`，導致線上單株詳情仍顯示《名錄》舊分級，而本機示範模式測不到）；**樹齡**：查詢要取 `official_age_years`，且年齡區間條件不得交給 SQL（否則用 115–120 年會漏掉 DB 寫 155 年的 #619） | 6 |
 | `tests/pwa.test.js` | **離線 PWA**：manifest 欄位、**圖示尺寸與來源 SVG 同步**（實際讀 PNG 標頭比對、`build-icons --check` 抓「改了 icon.svg 忘了重跑產生器」、外環半徑必須留在 Android 圓形裁切的安全區內）、`sw.js` 預載清單與實際檔案同步（重跑產生器必須無差異，且逐一以 HTTP 確認 200）、`index.html` 引用的每個本機資源都在預載清單內、只處理 GET、`/api/health` 不快取、照片與圖磚有上限、離線狀態文案（含「伺服器連不上但裝置有網路」的情況）、伺服器以正確 MIME 提供 `sw.js`／manifest | 17 |
 | `tests/api-security.test.js` | API 安全測試（見下） | 12 |
-| `tests/security-headers.test.js` | **安全標頭與 CORS 守門**（2026-09-27 ZAP 被動掃描的四項發現）：`vercel.json` 必須設定 CSP／`X-Content-Type-Options: nosniff`／`X-Frame-Options: DENY`／`Referrer-Policy`；CSP 不得有 `unsafe-eval`、`script-src` 不得有 `unsafe-inline`（只有 `'self'`）、必須鎖住 `frame-ancestors 'none'`／`object-src 'none'`／`base-uri`／`form-action`、`img-src` 必須涵蓋實際使用的外部來源（OSM 圖磚、Supabase Storage）且不得開放整個 `https:`；`Permissions-Policy` 只放行本站需要的定位與相機；**前端不得有行內事件處理器與行內 script**（否則 `script-src 'self'` 會把功能擋掉）；後端程式與設定檔不得再出現 `Access-Control-Allow-Origin: *`；CORS 白名單行為（本站來源回聲＋`Vary: Origin`、其他來源不回、未帶 `Origin` 不回） | 8 |
+| `tests/security-headers.test.js` | **安全標頭與 CORS 守門**（2026-09-27 ZAP 被動掃描的四項發現）：`vercel.json` 必須設定 CSP／`X-Content-Type-Options: nosniff`／`X-Frame-Options: DENY`／`Referrer-Policy`；CSP 不得有 `unsafe-eval`、`script-src` 不得有 `unsafe-inline`（只有 `'self'`）、必須鎖住 `frame-ancestors 'none'`／`object-src 'none'`／`base-uri`／`form-action`、`img-src` 必須涵蓋實際使用的外部來源（OSM 圖磚、Vercel Blob）且不得開放整個 `https:`；`Permissions-Policy` 只放行本站需要的定位與相機；**前端不得有行內事件處理器與行內 script**（否則 `script-src 'self'` 會把功能擋掉）；後端程式與設定檔不得再出現 `Access-Control-Allow-Origin: *`；CORS 白名單行為（本站來源回聲＋`Vary: Origin`、其他來源不回、未帶 `Origin` 不回） | 8 |
 | `tests/router.test.js` | **路由結構守門**：`api/` 只能有一個 Serverless Function（Vercel Hobby 上限 12）、路由表與 `lib/routes/` 一致、動態參數與 404 行為、單段落＋查詢參數形式、**前端不得出現多段落呼叫**、`vercel.json` 的 rewrite；**每個路由 id 都必須能以字面字串載入模組**（線上唯一入口走 `loadRoute()`，本機 dev-server 會用 `opts.handler` 繞過，曾因此讓 `/api/priority` 上線即 500）、**不傳 handler 也要能分派** | 9 |
 | `tests/diagnostics.test.js` | **錯誤診斷**：資料庫錯誤分類（缺資料表／欄位／函式／權限／連線；**PostgREST 與 PostgreSQL 兩種訊息寫法都要指出正確的欄位／表名**——曾把「缺少欄位 bark_conditions」講成「缺少欄位 of」，也曾把缺欄位誤判成缺資料表）、`errText` 不會產生 `[object Object]`、public 5xx 才原樣回傳訊息、`/api/health` 的結構自我檢查、前端所有錯誤顯示都經過 `errText` | 18 |
-| `tests/secrets.test.js` | 機密掃描：掃描所有 git 追蹤檔案，出現 JWT 形式金鑰、真實 Supabase 網址或未忽略的 `.env` 即失敗 | 3 |
+| `tests/secrets.test.js` | 機密掃描：掃描所有 git 追蹤檔案，出現 JWT 形式金鑰、真實資料庫連線字串或未忽略的 `.env` 即失敗 | 3 |
 | `tests/repo-hygiene.test.js` | **倉庫整潔**：版控不得有瀏覽器設定檔、暫存頁、日誌或系統檔（曾把 484 檔／7.7 MB 的無頭 Chrome 設定檔 commit 進來）、單檔不得超過 1.5 MB、`scripts/` 不得有孤兒腳本（沒被 README／package.json／workflow／其他腳本提到）、`scripts/` 每個檔案都要在 README 的腳本表裡、`.gitignore` 必須擋住會再長回來的目錄 | 5 |
 | `tests/gps.test.js` | **GPS 誤差半徑比對**：判定規則（≤30 公尺相符、>30 公尺「可能不是這一株」、精度差於 ±50 公尺只能說「僅供參考」、官方無座標則「無法比對」）、邊界值（30／31、50／51）、**前後端門檻與球面距離公式必須一致**（前端不能 import 後端的 `lib/`，是刻意的複製）、三處一致（前端欄位名／後端值域／資料庫 CHECK）、後端驗證超界會擋下並說出範圍、前端接線（`enableHighAccuracy`、精度與距離寫進表單、CSV 兩欄、紀錄列「位置比對」欄）、**健康檢查必須探測前端會寫入的欄位**（資料庫沒升級要在健康檢查就看得出來）、紙本考察單留有位置比對欄位 | 12 |
 | `tests/policy.test.js` | **政策方案（政策型設計方案）**：產生檔與 `data/policy.json` 同步（`--check`）、三個方向齊全且各有 ≥3 條政策與 ≥3 項行動、**每一條政策與行動都要有官方出處或政策依據**（引用了不存在的來源即失敗）、來源索引每筆都要有標題／發布者／https 網址、行動欄位完整（做什麼／誰負責／在哪裡／成功指標／期程／成本）且**指標必須可核對**（含數字或頻率用詞）、**誠實原則**（必須寫出「官方沒有城市樹木降溫與逐株碳匯數字」兩個缺口、引用國際研究時必須標明不是澳門實測、不得出現「澳門樹木降溫 X 度」這類無來源數字）、方案內容不得出現「作業」二字、API 契約（未知方向 404、`all=1`／`gaps=1`、POST 回 405）、前端接線（分頁／VIEWS／TITLES／稽核清單）、**列印模式與網頁共用同一份資料**、以及**用到的樣式類別必須真的存在**（`.stat-row`／`.tone-danger` 這類只有程式碼在用、樣式表沒定義的情況要擋下來） | 18 |
@@ -499,7 +502,7 @@ npm run verify         # check ＋ test
 - **資訊洩漏**：回應標頭不洩漏伺服器資訊；不包含環境變數、金鑰或 JWT；錯誤訊息結構化且不含堆疊。
 - **前端轉義**：`esc()` 與 `safeUrl()` 對 XSS payload 與 `javascript:` URL 的處理。
 - **跨域（CORS）**：API 只對白名單來源回 `Access-Control-Allow-Origin`（預設是本站兩個網域與本機開發埠，可用環境變數 `PUBLIC_ORIGINS` 追加），其他來源與未帶 `Origin` 的請求一律不回，並在帶 `Origin` 時加上 `Vary: Origin`。
-- **前端不持有金鑰**：掃描 `public/js/*.js` 與 `index.html`，確認無 Supabase 端點、無 `createClient`、無 JWT。
+- **前端不持有金鑰**：掃描 `public/js/*.js` 與 `index.html`，確認無資料庫端點、無 `createClient`、無 JWT。
 - **內容安全**：科普文章的 Markdown 不含遠端腳本或外部追蹤。
 
 ### 前端渲染驗證
@@ -667,8 +670,8 @@ npm run pwa:check                  # 真實斷網測試：關掉伺服器後頁�
 | 每日自動擷取 | `.github/workflows/refresh-official-data.yml` | 每天 04:20（澳門時間）抓 `https://www.iam.gov.mo/nature/BigJson/oldtrees_c.json`（不含照片） |
 | 變更偵測 | 同上的 `diff` 步驟 | **只比對官方名錄內容**；內容沒變就還原痕跡、不提交、不重新部署 |
 | 官方觀測快照 | `data/observations/`（`scripts/snapshot-observations.mjs`） | 官方只公布現行值、沒有歷史值，所以**每次官方內容變更就存一份帶日期的快照**，成為監測時間序列的第二個時間點；內容沒變不重複存檔（以監測欄位的內容雜湊判斷） |
-| 內容有變時 | 同上 | 存入官方觀測快照 → 重建 `supabase/seed.sql`、前端快照、`lib/data-meta.js` → 先跑 `npm test` → 提交推送 → Vercel 自動重新部署 |
-| 資料庫同步 | GitHub Issue 通知 | Supabase 需重跑 `supabase/init.sql`（SQL Editor 手動執行，本站不保管資料庫金鑰） |
+| 內容有變時 | 同上 | 存入官方觀測快照 → 重建 `db/001_schema.sql（種子段）`、前端快照、`lib/data-meta.js` → 先跑 `npm test` → 提交推送 → Vercel 自動重新部署 |
+| 資料庫同步 | GitHub Issue 通知 | 需用 psql 或 Neon SQL Editor 重跑 `db/001_schema.sql`（本站不保管資料庫金鑰） |
 | 資料履歷 | `lib/data-meta.js`（由 `scripts/gen-data-meta.mjs` 產生） | 來源、清單端點、擷取時間、筆數、照片數、內容雜湊 |
 | 前端顯示 | 總覽頁「資料方法說明」 | 顯示**官方資料擷取時間**與內容雜湊，任何人一眼可驗資料新舊 |
 
@@ -687,7 +690,7 @@ npm run refresh:official  # 重抓官方名錄 → 重建種子檔／快照／�
 ### 症狀：實地考察的照片上傳失敗，說「儲存空間（field-photos）還不存在」
 
 **原因**：資料庫還沒跑過 v0.13.0 以上的 `init.sql`，`storage.buckets` 裡沒有 `field-photos`。
-**解法**：到 Supabase → SQL Editor 貼上最新 `supabase/init.sql` 全文並 Run（可重複執行）。
+**解法**：用 `psql "$DATABASE_URL" -f db/001_schema.sql`（或 Neon SQL Editor 貼上全文）重跑（可重複執行）。
 紀錄本身仍會存進資料庫，只有照片不會上傳；示範模式下照片則一律只留在該裝置，這是刻意設計。
 
 ### 症狀：某些分頁出現「伺服器處理請求時發生錯誤」，實地考察頁寫「無法連線 API」
@@ -700,13 +703,13 @@ npm run refresh:official  # 重抓官方名錄 → 重建種子檔／快照／�
 ```json
 { "ok": false, "error_code": "db_schema_outdated",
   "error": "資料庫結構是舊版：缺少資料表 field_records，所以這個查詢無法完成。",
-  "hint": "請在 Supabase Dashboard → SQL Editor 貼上並執行最新的 supabase/init.sql…",
+  "hint": "請用 psql 或 Neon SQL Editor 執行最新的 db/001_schema.sql…",
   "schema": { "ok": false, "missing": ["資料表 field_records（實地考察）：Could not find the table …"] } }
 ```
 
 網站也會在頁面最上方顯示「資料庫需要升級」提示（含可展開的缺少項目清單）。
 
-**解法**：Supabase → SQL Editor → 貼上 `supabase/init.sql` 全文 → Run。
+**解法**：`psql "$DATABASE_URL" -f db/001_schema.sql`（或 Neon SQL Editor 貼上全文 → Run）。
 檔頭的「版本升級」段會自動補齊缺少的欄位、資料表與函式（可重複執行，不會弄丟實地考察紀錄）。
 執行完重新整理，`/api/health` 的 `schema.ok` 應變成 `true`、`missing` 為空。
 
@@ -716,9 +719,9 @@ npm run refresh:official  # 重抓官方名錄 → 重建種子檔／快照／�
 舊版 `v_trees` 的第 10 欄是 `species`，新版同一位置是 `tree_geo_precision`，舊資料庫重跑時就報 42P16。
 （同理，函式回傳型別改變時 `CREATE OR REPLACE FUNCTION` 會報 42P13。）
 
-**解法**：`supabase/schema.sql` 的檢視表段落現在**先 `drop view … cascade` 再重建**，
-並用 DO 迴圈刪除本專案的 `rpc_*` 函式後重建，因此**直接重跑 `supabase/init.sql` 即可**。
-若想單獨先修這一步，可先執行 `supabase/fix_42P16.sql`（只刪檢視表與函式，不動資料）。
+**解法**：`db/001_schema.sql` 的檢視表段落現在**先 `drop view … cascade` 再重建**，
+並用 DO 迴圈刪除本專案的 `rpc_*` 函式後重建，因此**直接重跑 `db/001_schema.sql` 即可**。
+若想單獨先修這一步，可先執行 `supabase/fix_42P16.sql`（Supabase 舊綱要；Neon 版不需此步）（只刪檢視表與函式，不動資料）。
 
 驗證方式（PGlite 實跑，已納入 `tests/sql.test.js`）：把 `v_trees` 換成舊版欄位順序與舊版
 `rpc_overview` 回傳型別後重跑 `init.sql`，必須成功重建且 `trees`／`v_trees`／`rpc_overview` 都恢復正常。
@@ -783,9 +786,9 @@ Vercel 專案的 **Deployment Protection** 開啟了（`Vercel Authentication`�
 
 | `error_code` | 意思 | 下一步 |
 | --- | --- | --- |
-| `db_schema_outdated` | 資料庫缺少資料表／欄位／函式 | 重跑 `supabase/init.sql` |
-| `db_permission` | 權限不足 | 確認 Vercel 的 `SUPABASE_SERVICE_ROLE_KEY` 是 service_role（不是 anon） |
-| `db_unreachable` | 連不上資料庫 | 確認 `SUPABASE_URL` 正確、專案未被暫停 |
+| `db_schema_outdated` | 資料庫缺少資料表／欄位／函式 | 重跑 `db/001_schema.sql` |
+| `db_permission` | 權限不足 | 確認 Vercel 的 `DATABASE_URL` 連線角色對 public schema 有讀寫權 |
+| `db_unreachable` | 連不上資料庫 | 確認 `DATABASE_URL` 正確（Neon 不會暫停，閒置後首次查詢約慢 0.3–0.5 秒） |
 | `db_query_failed` | 其他資料庫錯誤 | 訊息中會附原始錯誤 |
 
 > 一般 5xx 只回「伺服器處理請求時發生錯誤」以避免洩漏內部細節；但資料庫結構類的問題
@@ -906,7 +909,7 @@ Vercel 專案的 **Deployment Protection** 開啟了（`Vercel Authentication`�
 ```bash
 # data/env_chem.json 是人工整理的官方數據節錄（每項附出處與網址）
 npm run build:env      # → data/env-chem-data.js（附內容雜湊，頁面與 API 都會顯示）
-npm run build:init     # schema.sql ＋ seed.sql → supabase/init.sql
+npm run build:init     # schema.sql ＋ seed.sql → db/001_schema.sql
 node scripts/cdp-check.mjs "http://127.0.0.1:3463/#/chemistry" --wait "17.3"
 ```
 
@@ -936,7 +939,7 @@ v0.13.0 把它做成勾選欄位與真正的照片上傳：
 | --- | --- |
 | 前端 | `public/js/field.js` 的 `BARK`／`SURROUND`／`COVERS`（勾選格附白話說明） |
 | 後端 | `lib/repo.js` 的 `FIELD_BARK`／`FIELD_SURROUND`／`FIELD_CONCRETE_COVER`（驗證與正規化） |
-| 資料庫 | `supabase/schema.sql` 的 `field_records_bark_conditions_check` 等三個 CHECK（陣列用 `<@` 比對） |
+| 資料庫 | `db/001_schema.sql` 的 `field_records_bark_conditions_check` 等三個 CHECK（陣列用 `<@` 比對） |
 
 `tests/field.test.js` 逐項比對三邊；`npm run build:init` 產生的升級段落也會替舊資料庫補上這三個 CHECK，
 而且**陣列欄位只刪掉非法元素、不會整欄覆蓋**（學生填的內容不會被清掉）。
@@ -950,7 +953,7 @@ v0.13.0 把它做成勾選欄位與真正的照片上傳：
 4. 資料庫只存路徑（`photo_paths`），讀取時由 `photoPublicUrl()` 組成網址一併回傳（`photo_urls`），
    前端清單直接顯示縮圖；`../`、絕對路徑與外部網址一律在驗證層被濾掉。
 
-**示範模式（未連接 Supabase）**：照片不上傳，改存本機瀏覽器並在畫面明示「只留在這台裝置」；
+**示範模式（未連接資料庫）**：照片不上傳，改存本機瀏覽器並在畫面明示「只留在這台裝置」；
 真的存不下（localStorage 額度）時會放棄照片、留住紀錄文字，並告訴使用者先匯出 CSV —— 不會默默失敗。
 
 ### 18.3 A4 考察單的一頁限制
@@ -1072,7 +1075,7 @@ node scripts/cdp-check.mjs "http://127.0.0.1:3473/#/card?mode=policy" --wait "�
 4. 紀錄清單多一欄「位置比對」（`距 5 m／±8 m` 這樣顯示，距離在 30 公尺內為綠字）。
 
 三處的值域必須一致：前端欄位名、`lib/repo.js` 的 `GPS_LIMITS`（0–1000／0–100000 公尺）、
-`supabase/schema.sql` 的 `field_records_gps_check`；`tests/gps.test.js` 逐項比對。
+`db/001_schema.sql` 的 `field_records_gps_check`；`tests/gps.test.js` 逐項比對。
 
 也可以手動輸入緯度／經度（現場沒開定位權限時），只要官方座標在，比對照樣算得出來。
 紙本考察單也留了「現場 GPS 座標」「定位精度」「與官方座標距離」「位置比對（□ 相符 □ 可能不是這一株）」欄位，
@@ -1107,7 +1110,7 @@ node scripts/cdp-check.mjs "http://127.0.0.1:3475/#/field?tree=66" --wait "比�
 （少了授權，無頭 Chrome 的 `getCurrentPosition` 會直接進 error callback，永遠測不到判定）。
 
 > **部署提醒**：`gps_accuracy_m`／`gps_distance_m` 是新的資料庫欄位，
-> 要在 Supabase SQL Editor **整份貼上 `supabase/init.sql` 並 Cmd/Ctrl+A 全選後 Run**，
+> 要用 `psql "$DATABASE_URL" -f db/001_schema.sql`（或 Neon SQL Editor 整份貼上後 Run），
 > 有紀錄的裝置才存得進去（沒重跑的話，寫入時 `/api/health` 會提示缺少欄位）。
 
 ---
@@ -1484,7 +1487,7 @@ print(d.page_count, '頁', d[0].rect)"
 24 個請求、全部是未帶認證的 GET）。共 12 條警示：中風險 3、低風險 1、資訊提示 8，**高風險 0**。
 
 **憑證盤點（先做）**：報告會把完整的請求和回應寫進去，因此先以程式掃過密碼欄位、JWT、`Bearer`、
-`Authorization`、`Cookie`、Supabase 金鑰、私鑰——**全部 0 組**；報告也不進版控
+`Authorization`、`Cookie`、資料庫金鑰、私鑰——**全部 0 組**；報告也不進版控
 （`.gitignore` 已加 `*ZAP-Report*.html`）。
 
 ### 29.1 逐條判讀（三類）

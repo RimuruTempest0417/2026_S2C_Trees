@@ -1,0 +1,11 @@
+# CODEOWNERS
+# 註：GitHub 只有在「分支保護規則」存在時才會強制指派審查者。
+# 目前 repo 是 private + 免費方案（沒有分支保護），所以這個檔案暫時只是「建議」；
+# 升級 GitHub Pro 或轉為 public 之後，main 的保護規則會讓它真正生效。
+*               @RimuruTempest0417
+
+# 官方數值、分級與資料結構：一律由 owner 看過
+/data/          @RimuruTempest0417
+/lib/repo.js    @RimuruTempest0417
+/supabase/      @RimuruTempest0417
+/db/            @RimuruTempest0417

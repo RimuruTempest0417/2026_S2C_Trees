@@ -51,14 +51,14 @@ test('describeDbFailure：缺資料表 → 503＋指出表名＋提供修復指�
   assert.equal(d.public, true);
   assert.match(d.message, /資料庫結構是舊版/);
   assert.match(d.message, /field_records/);
-  assert.match(d.hint, /init\.sql/);
+  assert.match(d.hint, /001_schema\.sql/);
 });
 
 test('describeDbFailure：缺欄位 → 歸為 schema 舊版並附修復指示', () => {
   const d = describeDbFailure({ code: '42703', message: 'column "official_no" does not exist' });
   assert.equal(d.code, 'db_schema_outdated');
   assert.match(d.message, /欄位/);
-  assert.match(d.hint, /版本升級/);
+  assert.match(d.hint, /可重複執行/);
 });
 
 test('describeDbFailure：PostgREST schema cache 訊息（PGRST205／PGRST204）也算結構問題', () => {
@@ -68,20 +68,20 @@ test('describeDbFailure：PostgREST schema cache 訊息（PGRST205／PGRST204）
   assert.equal(c.code, 'db_schema_outdated');
 });
 
-test('describeDbFailure：缺資料庫函式 → 指向 init.sql 補上函式', () => {
+test('describeDbFailure：缺資料庫函式 → 指向 001_schema.sql 補上函式', () => {
   const d = describeDbFailure({ code: '42883', message: 'function public.rpc_overview() does not exist' });
   assert.equal(d.code, 'db_schema_outdated');
   assert.match(d.message, /rpc_overview/);
-  assert.match(d.hint, /函式/);
+  assert.match(d.hint, /001_schema\.sql/);
 });
 
 test('describeDbFailure：權限不足與連線失敗要給不同的排除方向', () => {
   const perm = describeDbFailure({ code: '42501', message: 'permission denied for table trees' });
   assert.equal(perm.code, 'db_permission');
-  assert.match(perm.hint, /service_role/);
+  assert.match(perm.hint, /DATABASE_URL/);
   const net = describeDbFailure({ message: 'fetch failed' });
   assert.equal(net.code, 'db_unreachable');
-  assert.match(net.hint, /SUPABASE_URL/);
+  assert.match(net.hint, /DATABASE_URL/);
 });
 
 test('describeDbFailure：其他資料庫錯誤不會假裝是結構問題', () => {
@@ -142,8 +142,8 @@ test('healthCheck：示範模式（snapshot）回報結構正常且不需要修�
   assert.equal(h.schema.hint, null);
 });
 
-test('SCHEMA_FIX_HINT 一定要指向 init.sql 與「可重複執行」', () => {
-  assert.match(SCHEMA_FIX_HINT, /init\.sql/);
+test('SCHEMA_FIX_HINT 一定要指向 db/001_schema.sql 與「可重複執行」', () => {
+  assert.match(SCHEMA_FIX_HINT, /001_schema\.sql/);
   assert.match(SCHEMA_FIX_HINT, /可重複執行/);
 });
 

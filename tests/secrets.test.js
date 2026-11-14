@@ -55,7 +55,10 @@ test('.env.example 只放佔位符', (t) => {
   const s = readFileSync('.env.example', 'utf8');
   assert.ok(!/eyJ[A-Za-z0-9_-]{8,}\./.test(s), '.env.example 含 JWT 形式的金鑰');
   assert.ok(!REAL_SUPABASE_URL.test(s), '.env.example 含真實 Supabase 專案網址');
-  assert.match(s, /SUPABASE_URL=https:\/\/xxx+\.supabase\.co/, '.env.example 的 SUPABASE_URL 應為 xxx 佔位符');
+  assert.match(s, /DATABASE_URL=postgresql:\/\/[^\n]*ep-x{6,}/,
+    '.env.example 的 DATABASE_URL 應為 x 佔位符（不得填真實連線字串）');
+  assert.match(s, /BLOB_READ_WRITE_TOKEN=vercel_blob_rw_x{6,}/,
+    '.env.example 的 Blob 權杖應為佔位符');
 });
 
 test('.gitignore 必須忽略真實的環境變數檔', () => {
