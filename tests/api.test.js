@@ -284,7 +284,7 @@ test('路綫候選來源必須含座標（不得退回 rpc_scatter）', async ()
   const src = fs.readFileSync(path.join(ROOT, 'lib', 'repo.js'), 'utf8');
   const fn = src.slice(src.indexOf('export async function allTrees'));
   const body = fn.slice(0, fn.indexOf('export async function', 10));
-  assert.ok(body.includes("from('v_trees')"), 'allTrees 應從 v_trees 取資料');
+  assert.ok(body.includes('from public.v_trees'), 'allTrees 應從 v_trees 取資料');
   for (const col of ['lat', 'lon']) {
     assert.ok(body.includes(col), `allTrees 的查詢沒有帶 ${col}`);
   }

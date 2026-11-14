@@ -2,15 +2,15 @@
  * 實地考察：記錄表單 ＋ 紀錄清單 ＋ CSV 匯出。
  *
  * 「預留空間」的實作方式：
- *   1. 資料庫（Supabase）連線時 → 紀錄直接寫入 field_records 表，人人可見。
+ *   1. 資料庫（Neon）連線時 → 紀錄直接寫入 field_records 表，人人可見。
  *   2. 示範模式（未連線）→ API 回報 writable:false，改存本機 localStorage，
  *      並在畫面上明確標示「尚未寫入資料庫」，不讓使用者誤以為已上傳。
  *   3. v0.13.0 起：現場照片可在表單直接選（手機相機）→ 前端壓縮 → 上傳到
- *      Supabase Storage（bucket: field-photos）；示範模式則暫存在這台裝置並明示。
+ *      Vercel Blob（field-photos/）；示範模式則暫存在這台裝置並明示。
  *   4. 樹皮狀況與周邊環境已做成勾選欄位（v0.13.0），現場不用再靠文字描述硬撐。
  *
  * 【重要】BARK／SURROUND／COVERS 三份清單必須與 lib/repo.js 的
- * FIELD_BARK／FIELD_SURROUND／FIELD_CONCRETE_COVER 以及 supabase/schema.sql 的
+ * FIELD_BARK／FIELD_SURROUND／FIELD_CONCRETE_COVER 以及 db/001_schema.sql 的
  * CHECK 限制條件完全一致（tests/field.test.js 會比對三邊）。
  */
 import { api } from './api.js';
@@ -83,7 +83,7 @@ const fmtBytes = (n) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Ma
 
 /**
  * 把相片壓到適合上傳的大小：長邊上限 1280、JPEG 品質 0.72。
- * 目的不只是省流量——Vercel 的請求上限與 Supabase Storage 的檔案上限都很小，
+ * 目的不只是省流量——Vercel 的請求上限與 Vercel Blob 的檔案上限都很小，
  * 直接原圖上傳（手機一張 3–5 MB）就會失敗，所以一律在前端先壓。
  * 回傳 data URL（後端 /api/photo 只接受 data URL，並且會再驗尺寸與型別）。
  */
@@ -379,7 +379,7 @@ export async function render(section, params = new URLSearchParams()) {
     <div class="card" style="margin-top:1rem">
       <h2>還在規劃中</h2>
       <ul class="small">
-        <li><strong>多人協作與審核</strong>：教師／巡查員帳號可覆核學生紀錄，保留修改歷程（需 Supabase Auth）。</li>
+        <li><strong>多人協作與審核</strong>：教師／巡查員帳號可覆核學生紀錄，保留修改歷程（需登入系統）。</li>
       </ul>
     </div>`;
 
@@ -475,7 +475,7 @@ export async function render(section, params = new URLSearchParams()) {
            於部署環境設定資料庫連線的環境變數後（見 README〈部署〉一節），
            考察紀錄就會寫入 <code>field_records</code> 表（含照片上傳到 Storage）。</div>`;
       sourceEl.textContent = writable
-        ? '紀錄來源：Supabase 資料庫（field_records 表）；照片存於 Storage 的 field-photos bucket'
+        ? '紀錄來源：Neon 資料庫（field_records 表）；照片存於 Vercel Blob 的 field-photos/'
         : '紀錄來源：示範模式（未連接資料庫）＋ 這台裝置的瀏覽器暫存（照片也只留在這台裝置）';
     } catch (err) {
       serverRecords = [];
@@ -643,7 +643,7 @@ export async function render(section, params = new URLSearchParams()) {
       照片網址: [ ...(Array.isArray(r.photo_urls) ? r.photo_urls : []), r.photo_url || '' ].filter(Boolean).join(' '),
       緯度: r.lat ?? '', 經度: r.lon ?? '',
       定位精度公尺: r.gps_accuracy_m ?? '', 與官方座標距離公尺: r.gps_distance_m ?? '',
-      儲存位置: r.local ? '本機瀏覽器' : 'Supabase 資料庫',
+      儲存位置: r.local ? '本機瀏覽器' : 'Neon 資料庫',
     })));
   });
 
