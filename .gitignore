@@ -21,3 +21,8 @@ zap-report*.html
 
 # 用無頭 Chrome 稽核時誤留在專案內的瀏覽器設定檔（內含擴充功能程式碼，不該進版控）
 prof-*/
+
+# macOS／iCloud 同步產生的衝突副本（不是專案內容）
+public/partner/相片/* 2.jpg
+* 2.js
+* 2.md
