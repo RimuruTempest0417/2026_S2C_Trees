@@ -1,26 +1,42 @@
-name: CI
+name: 測試與語法檢查
 
 # 為什麼要有這個：PR 只跑 Vercel 建置（不跑測試），
 # 所以測試檔語法壞掉也能合併進 main／develop（v1.2.0 就發生過一次）。
-# 這裡讓每個 PR 與 push 都真的跑 npm test 與 npm run check。
-#
-# 注意：這個 repo 的 Actions 政策是 local_only（只允許 GitHub 內建 action），
-# 因此只用 actions/checkout，Node 用 runner 預裝的版本，不另外 setup-node。
 
 on:
-  pull_request:
-    branches: [main, develop]
   push:
     branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
   workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: node -v && npm -v
-      - run: npm ci
-      - run: npm run check
-      - run: npm test
-      - run: node scripts/build-sw.mjs --check
+      - name: 取出原始碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安裝依賴
+        run: npm ci
+
+      - name: 語法檢查
+        run: npm run check
+
+      - name: 單元測試
+        run: npm test
+
+      - name: Service Worker 預載清單
+        run: node scripts/build-sw.mjs --check
