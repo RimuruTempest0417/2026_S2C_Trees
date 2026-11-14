@@ -44,6 +44,7 @@ const PRECACHE = [
   '/js/qr.js',
   '/js/routes.js',
   '/js/ui.js',
+  '/js/worldmap.js',
   '/manifest.webmanifest',
   '/offline.html',
   '/vendor/chart.umd.js',
