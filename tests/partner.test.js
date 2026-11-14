@@ -36,6 +36,16 @@ test('合作專題頁不得有 inline 事件屬性（CSP script-src \'self\' 會
   assert.equal(inline.length, 0, `發現 ${inline.length} 個 inline 事件屬性：${inline.join('、')}`);
 });
 
+test('合作專題的程式不得「產生」inline 事件屬性（innerHTML 字串裡的 onerror 也一樣會被擋）', () => {
+  // 曾發生：HTML 檔本身乾淨，但 app.js 用 innerHTML 組出 onerror="imgFix(...)"，
+  // 真實 CSP 下每張卡片都報 "Executing inline event handler violates..."。
+  const generated = js.match(/\son(?:click|load|error|change|input|submit)\s*=\s*"/gi) || [];
+  assert.equal(generated.length, 0, `app.js 產生 ${generated.length} 個 inline 事件屬性：${generated.join('、')}`);
+  // 圖片載入失敗的替代路徑改用 data-fix + 委派監聽
+  assert.match(js, /addEventListener\('error'/, '缺少圖片錯誤的委派監聽');
+  assert.match(js, /data-fix=/, '缺少 data-fix 標記');
+});
+
 test('ArcGIS 圖磚網域必須列在 CSP img-src，否則世界地圖會空白', () => {
   const csp = vercel.headers
     .flatMap((h) => h.headers)

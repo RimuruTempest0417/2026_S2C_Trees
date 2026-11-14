@@ -29,6 +29,11 @@ const PLACEHOLDER='data:image/svg+xml;utf8,'+encodeURIComponent(
   '<text x="200" y="140" fill="#4FD1A5" font-size="20" text-anchor="middle" font-family="sans-serif">澳門市政署古樹資料庫</text>'+
   '<text x="200" y="172" fill="#93AEA7" font-size="14" text-anchor="middle" font-family="sans-serif">此棵未提供照片</text>'+
   '<text x="200" y="196" fill="#93AEA7" font-size="13" text-anchor="middle" font-family="sans-serif">（資料仍完整）</text></svg>');
+/* CSP：script-src 'self' 會擋 inline 事件屬性，改用委派監聽（error 不冒泡，需 capture） */
+document.addEventListener('error',function(e){
+  var t=e.target;
+  if(t && t.tagName==='IMG' && t.dataset && t.dataset.fix){ imgFix(t, t.dataset.fix); }
+},true);
 function imgFix(el,id){
   el.onerror=function(){this.onerror=null;this.src=PLACEHOLDER;};
   el.src=PH_REMOTE+id+'.jpg';
@@ -176,7 +181,7 @@ function renderCards(){
   document.getElementById('cards').innerHTML=page.map(function(t){
     return '<div class="tcard" data-no="'+t[0]+'">'+
       '<img class="thumb" loading="lazy" src="'+thumbUrl(t)+'" alt="'+t[2]+'" '+
-      'onerror="imgFix(this,\''+t[14]+'\')">'+
+      'data-fix="'+t[14]+'">'+
       '<div class="meta"><div class="sp">'+t[2]+'</div>'+
       '<div class="ln mono">'+t[0]+'｜樹齡 '+t[9]+' 年</div>'+
       '<div class="row"><span class="rg">'+t[11].replace('堂區','')+'</span>'+
@@ -768,7 +773,7 @@ function openTree(no){
     '<div class="lat">'+latin+'</div></div>'+
     '<button class="x" id="closer">✕</button></div>'+
   '<div class="mbody"><div>'+
-    '<img class="photo" src="'+thumbUrl(t)+'" alt="'+sp+'" onerror="imgFix(this,\''+img+'\')">'+
+    '<img class="photo" src="'+thumbUrl(t)+'" alt="'+sp+'" data-fix="'+img+'">'+
     '<div class="pcap">官方照片來源：澳門市政署「澳門古樹名木」資料庫<br>'+
       '相片編號 '+img+'｜樹木編號 '+tno+'｜古樹名錄編號 '+oldNo+'</div>'+
     '<div class="mini" id="minimap"></div>'+
