@@ -138,7 +138,8 @@ test('index.html 未被改壞：模組入口、檢視容器與彈窗都還在', 
     assert.ok(html.includes(`id="${id}"`), `缺少 #${id}`);
   }
   assert.ok(html.includes('<script type="module" src="/js/app.js"></script>'), '缺少模組入口');
-  assert.ok(html.includes('href="/partner/"'), '合作專題的導覽連結不應被移除');
+  // v1.2.0 起合作專題已整併進地圖頁，不應再有 /partner/ 的獨立入口
+  assert.ok(!html.includes('href="/partner/"'), '不應保留 /partner/ 獨立入口');
   const tags = html.split('<script').slice(1).map((p) => p.slice(0, p.indexOf('>') + 1));
   assert.ok(tags.every((t) => t.includes('src=')), 'index.html 不應出現內嵌 script');
 });
