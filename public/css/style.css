@@ -373,6 +373,103 @@ table.table th + th, table.table td + td { border-left: 1px solid color-mix(in s
 }
 .legend-box .legend-row { display: flex; align-items: center; gap: .4rem; margin-bottom: .18rem; }
 
+/* ── 世界地圖（世界 → 珠三角 → 澳門） ────────────────────── */
+.map-mode {
+  display: inline-flex; margin-bottom: .5rem; overflow: hidden;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--card);
+}
+.map-mode-btn {
+  border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--ink-mute);
+  font: inherit; font-size: .82rem; font-weight: 600; padding: .34rem .85rem; cursor: pointer;
+}
+.map-mode-btn:last-child { border-right: 0; }
+.map-mode-btn:hover { color: var(--ink); background: color-mix(in srgb, var(--green-100) 45%, transparent); }
+.map-mode-btn.is-active { background: var(--green-700); color: #fff; }
+.map-mode-btn:focus-visible { outline: 2px solid var(--green-500); outline-offset: -2px; }
+
+.map-stage { position: relative; }
+.map-stage.is-world #map { visibility: hidden; }   /* 保留版面尺寸，Leaflet 不必重算 */
+
+.worldmap {
+  position: absolute; inset: 0; overflow: hidden;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
+  isolation: isolate;
+}
+.worldmap[hidden] { display: none; }
+.wm-svg {
+  display: block; width: 100%; height: 100%;
+  touch-action: none; cursor: grab; user-select: none;
+}
+.wm-svg:active { cursor: grabbing; }
+
+.wm-country {
+  fill: color-mix(in srgb, var(--green-100) 42%, var(--card));
+  stroke: var(--line-strong); stroke-width: 1; vector-effect: non-scaling-stroke;
+}
+.wm-prd {
+  /* 珠三角資料是一個「海岸線＋外框」的概略輪廓，填色會蓋住整個海面，
+     因此只畫外框，讓中倍率仍看得見底下的國家與海岸線 */
+  fill: none;
+  stroke: var(--green-600); stroke-width: 1.1; stroke-opacity: .8; vector-effect: non-scaling-stroke;
+}
+.wm-parish {
+  fill: color-mix(in srgb, var(--green-100) 55%, transparent);
+  stroke: var(--green-700); stroke-width: 1.3; vector-effect: non-scaling-stroke;
+}
+.wm-parish-label {
+  fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.wm-tree { stroke: var(--card); stroke-width: 1.1; vector-effect: non-scaling-stroke; cursor: pointer; }
+.wm-tree.good { fill: var(--green-500); }
+/* 一般＝黃：沿用平面地圖 .marker-dot.fair 的色票，兩套地圖的健康色才一致
+   （--amber-600 偏褐，和瀕危的紅在深色底上幾乎分不出來） */
+.wm-tree.fair { fill: #f59e0b; }
+.wm-tree.bad { fill: var(--red-600); }
+.wm-tree:hover { stroke: var(--ink); stroke-width: 2; }
+
+.wm-controls {
+  position: absolute; top: .6rem; right: .6rem; display: flex; flex-direction: column; gap: .35rem;
+  z-index: 2;
+}
+.wm-btn {
+  min-width: 2rem; padding: .34rem .55rem; border-radius: var(--radius-sm); cursor: pointer;
+  border: 1px solid var(--line-strong); background: color-mix(in srgb, var(--card) 92%, transparent);
+  color: var(--ink); font: inherit; font-size: .82rem; font-weight: 700; box-shadow: var(--shadow);
+}
+.wm-btn:hover { border-color: var(--green-600); color: var(--link); }
+.wm-btn:focus-visible { outline: 2px solid var(--green-500); outline-offset: 1px; }
+
+.wm-status {
+  position: absolute; top: .6rem; left: .6rem; margin: 0; max-width: 60%;
+  padding: .22rem .5rem; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--card) 90%, transparent); color: var(--ink-soft);
+  font-size: .74rem; pointer-events: none;
+}
+.wm-legend {
+  position: absolute; bottom: .6rem; left: .6rem; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+  padding: .35rem .55rem; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--card) 90%, transparent); font-size: .74rem; color: var(--ink-soft);
+  pointer-events: none;
+}
+.wm-legend strong { color: var(--ink); font-size: .74rem; }
+.wm-legend span { display: inline-flex; align-items: center; gap: .25rem; }
+.wm-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; border: 1px solid var(--card); }
+.wm-dot.good { background: var(--green-500); }
+.wm-dot.fair { background: #f59e0b; }
+.wm-dot.bad { background: var(--red-600); }
+.wm-hint {
+  position: absolute; right: .6rem; bottom: .6rem; margin: 0;
+  padding: .18rem .45rem; border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--card) 84%, transparent); color: var(--ink-mute);
+  font-size: .7rem; pointer-events: none;
+}
+@media (max-width: 640px) {
+  .wm-hint { display: none; }
+  .wm-status { max-width: 55%; }
+}
+
 /* ── 路綫 ─────────────────────────────────────────────────── */
 .route-card { cursor: pointer; }
 .route-card:hover { border-color: var(--green-600); }
