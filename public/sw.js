@@ -43,6 +43,7 @@ const PRECACHE = [
   '/js/pwa.js',
   '/js/qr.js',
   '/js/routes.js',
+  '/js/story.js',
   '/js/ui.js',
   '/js/worldmap.js',
   '/manifest.webmanifest',
