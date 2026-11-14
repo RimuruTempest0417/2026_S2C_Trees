@@ -1,11 +1,16 @@
 # CODEOWNERS
-# 註：GitHub 只有在「分支保護規則」存在時才會強制指派審查者。
-# 目前 repo 是 private + 免費方案（沒有分支保護），所以這個檔案暫時只是「建議」；
-# 升級 GitHub Pro 或轉為 public 之後，main 的保護規則會讓它真正生效。
-*               @RimuruTempest0417
+# 生效條件：分支保護規則（ruleset）勾選「Require review from Code Owners」時，這裡的指派才會被強制。
+# 本 repo 的 main-protection ruleset 已於 2026-11-14 開啟該選項（repo 轉 public 後解鎖）。
+# 注意：被指派的帳號必須是協作者（有 write 權限）；邀請尚未接受的帳號不會生效。
 
-# 官方數值、分級與資料結構：一律由 owner 看過
-/data/          @RimuruTempest0417
-/lib/repo.js    @RimuruTempest0417
-/supabase/      @RimuruTempest0417
-/db/            @RimuruTempest0417
+# 全專案：兩人共同擁有（任何一人審查即可）
+*                       @RimuruTempest0417 @shimianyizhimiao
+
+# 官方數值、分級與資料結構：一律由 owner 看過（同學動到這裡也要 Gary 批准）
+/data/                  @RimuruTempest0417
+/lib/repo.js            @RimuruTempest0417
+/db/                    @RimuruTempest0417
+/supabase/              @RimuruTempest0417
+
+# 前端頁面、樣式與前端邏輯：兩人共同擁有
+/public/                @RimuruTempest0417 @shimianyizhimiao
