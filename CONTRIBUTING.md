@@ -26,9 +26,9 @@ npm run dev            # http://127.0.0.1:3000
 |---|---|---|
 | `main` | 對外發佈版（Vercel production） | 只有 repo owner，經 PR 合併 |
 | `develop` | 日常開發整合 | 經 PR 合併 |
-| `feat/*`、`fix/*`、`docs/*`、`test/*` | 個人工作分支 | 自己 |
+| `gary/*`、`miao/*` | 個人工作分支 | 自己 |
 
-`feat/xxx` → PR → `develop` →（驗收後）PR → `main` → 發 Release。
+`gary/xxx` 或 `miao/xxx` → PR → `develop` →（驗收後）PR → `main` → 發 Release。
 
 ### 每個人的工作分支
 
@@ -36,24 +36,65 @@ npm run dev            # http://127.0.0.1:3000
 
 | 人 | 分支前綴 | 例子 |
 |---|---|---|
-| 張衍霖（owner） | `gary/` | `gary/neon-migration`、`gary/fix-print` |
-| 同學 | `miao/` | `miao/gallery-zoom`、`miao/fix-css` |
+| 張衍霖（owner，`@RimuruTempest0417`） | `gary/` | `gary/neon-migration`、`gary/fix-print` |
+| 同學（`@shimianyizhimiao`） | `miao/` | `miao/gallery-zoom`、`miao/fix-css` |
 
 規則：**只在自己的前綴分支上工作**，不要動別人的分支；合併一律走 PR，不直接推 `develop` 或 `main`。
 
-## 4. 開工三步
+## 4. 分工與同步節奏
+
+### 誰改哪裡（減少撞車）
+
+| 範圍 | 負責 | 規則 |
+|---|---|---|
+| `lib/`、`api/`、`db/`、`data/` | `@RimuruTempest0417` | 資料層與官方數值；`@shimianyizhimiao` 要改先講 |
+| `public/js/`、`public/css/`、`public/index.html` | `@RimuruTempest0417` ＋ `@shimianyizhimiao`（共同） | 兩人共同維護；同一個檔案不要同時改，改前在 PR 說明 |
+| `public/partner/` | `@shimianyizhimiao` | 專題頁面與相片，`@RimuruTempest0417` 不主動改 |
+| `docs/`、`.github/` | 兩人共同 | 文件與協作設定，改動前在 PR 說明 |
+| `vercel.json`、`package.json` | `@RimuruTempest0417` | 部署與依賴；改動前先通知另一人 |
+
+**原則**：不是「不能碰」，而是「碰之前講一聲」。只有兩人改到同一個檔案才會產生 conflict；不同檔案 Git 會自動合併。
+
+### 同步節奏（每天）
+
+```bash
+# 開工前
+git switch develop && git pull
+
+# 開自己的分支
+git switch -c miao/你的功能     # Gary 用 gary/
+
+# 推送前（若 develop 已前進）
+git fetch origin
+git rebase origin/develop       # 只 rebase 自己的分支，不要 rebase develop
+```
+
+- **每天至少 pull 一次**；超過一天沒同步，先 pull 再動手
+- **不要 rebase 或 force push `develop` / `main`**（規則會擋，也沒有必要）
+- 分支壽命建議 **3 天內**合併；拖太久 conflict 機率大增
+- 每週一次 15 分鐘同步（線上或當面）：這週各自做了什麼、下週要碰哪些檔案、有沒有要互相等的地方
+
+### 不要用雲端硬碟同步這個 repo
+
+iCloud、OneDrive、Google Drive 會產生「`xxx 2.jpg`」這種衝突副本，嚴重時會弄壞 `.git`。
+
+> 實際發生過：2026-11-14 在 `public/partner/相片/` 清掉 **387 個** iCloud 衝突副本（照片檔名被加上「 2」）。
+
+同步一律走 GitHub：`pull` / `push` 就是同步機制。
+
+## 5. 開工三步
 
 ```bash
 git switch develop && git pull
-git switch -c feat/你的功能
+git switch -c gary/你的功能        # 同學用 miao/
 # 做完
 git add -A && git commit -m "feat: 一句話說明"
-git push -u origin feat/你的功能
+git push -u origin gary/你的功能
 ```
 
 然後在 GitHub 開 PR **對 `develop`**，標題寫 `feat: …`。
 
-## 5. PR 規則
+## 6. PR 規則
 
 - 標題：`feat:`／`fix:`／`docs:`／`test:`／`chore:` 開頭，後面一句話
 - 內文要寫「改了什麼／怎麼驗的」，並連到對應 issue（`Closes #12`）
@@ -61,17 +102,17 @@ git push -u origin feat/你的功能
 - `develop` → `main`：**Create a merge commit**
 - 不要 force push 已經被別人拉過的分支
 
-## 6. 送 PR 前自己先跑
+## 7. 送 PR 前自己先跑
 
 ```bash
-npm test                      # 全部測試必須綠燈
+npm test                      # 全部測試必須綠燈（目前 399 項）
 npm run check                 # 語法檢查
 node scripts/build-sw.mjs --check   # PWA 預載清單要與版本一致
 ```
 
 三個沒過就不要開 PR。
 
-## 7. 不要做的事
+## 8. 不要做的事
 
 - 不要直接推 `main`，也不要在 `develop` 上直接改（除了 1 行錯字）
 - 不要 commit `.env`、金鑰、`node_modules/`、`*ZAP-Report*.html`
@@ -79,7 +120,7 @@ node scripts/build-sw.mjs --check   # PWA 預載清單要與版本一致
 - 不要改官方數值或自創分級；發現官方資料變動請開 issue
 - 不要在 `public/` 出現「作業」字樣（介面用語已定案）
 
-## 8. 給審查的人（checklist）
+## 9. 給審查的人（checklist）
 
 - [ ] 有沒有動到 `official_*` 數值或分級邏輯
 - [ ] 測試有沒有跟著更新（新增功能要加測試）
@@ -87,7 +128,7 @@ node scripts/build-sw.mjs --check   # PWA 預載清單要與版本一致
 - [ ] 深色模式與列印樣式有沒有壞
 - [ ] 有沒有新引入的第三方來源（CSP 白名單要跟著改）
 
-## 9. 版本編號規則
+## 10. 版本編號規則
 
 **主版號固定在 `1`，不進入 `2.x.x`。**
 
@@ -99,6 +140,6 @@ node scripts/build-sw.mjs --check   # PWA 預載清單要與版本一致
 
 發版流程：`package.json`、`lib/repo.js` 的 `API_VERSION`、`public/sw.js` 的 `VERSION` 三處要一致，並同時更新 `docs/releases/<版本>.md`。
 
-## 10. 有問題
+## 11. 有問題
 
 開 issue（用內建模板）或直接在 PR 留言。不確定就先問，不要先改設定或資料庫。
