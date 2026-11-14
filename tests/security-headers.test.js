@@ -74,7 +74,7 @@ test('CSP 的 img-src 涵蓋前端真的會載入的外部圖片來源', () => {
   assert.ok(img.includes('data:'), 'QR code／預覽用 data URL 必須允許');
   assert.ok(img.includes('blob:'), '現場照片預覽用 blob URL 必須允許');
   assert.ok(img.includes('https://tile.openstreetmap.org'), '地圖圖磚來源必須允許');
-  assert.ok(img.includes('https://*.supabase.co'), '實地考察照片（Supabase Storage）必須允許');
+  assert.ok(img.includes('https://*.public.blob.vercel-storage.com'), '實地考察照片（Vercel Blob）必須允許');
   // 不要用「https:」把整個網際網路放進來（這樣等於沒有 img-src）
   assert.ok(!/(^|[\s;])img-src[^;]*https:(\s|;|$)/.test(cspOf()), 'img-src 不得開放整個 https:');
 
