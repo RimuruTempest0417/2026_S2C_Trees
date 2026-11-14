@@ -956,3 +956,127 @@ summary { min-height: 28px; padding: .25rem 0; }
   gap: 1rem;
 }
 
+
+/* ── 專題導覽（#/story）───────────────────────────────────────
+   六章共用一般 .card；圖表是原生 SVG，顏色全部取自既有變數。
+   色票以 --seg 這個自訂屬性傳遞，讓同一個色塊類別同時可用於
+   SVG 的 fill（長條、堆疊）與 stroke（圓環）。 */
+#view-story > * + * { margin-top: 1.75rem; }
+
+.story-toc { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .9rem; }
+.story-toc .chip { min-height: 34px; }
+
+.story-chapter { scroll-margin-top: 84px; }
+.story-chapter + .story-chapter { margin-top: 1.75rem; }
+.story-head { margin-bottom: .35rem; }
+.story-kicker {
+  display: inline-block; font-size: .74rem; font-weight: 700;
+  letter-spacing: .04em; color: var(--green-700);
+}
+.story-head h2 { margin: .1rem 0 .5rem; }
+.story-head h2:focus-visible { outline: 2px solid var(--green-500); outline-offset: 3px; }
+.story-lead { font-size: .98rem; color: var(--ink-soft); margin-bottom: .9rem; }
+.story-chapter h3 { margin: 1rem 0 .4rem; font-size: .95rem; }
+.story-chapter h3:first-of-type { margin-top: .2rem; }
+
+.story-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.story-svg text { font-family: var(--font); }
+.story-label { font-size: 12px; fill: var(--ink-soft); }
+.story-value { font-size: 12px; font-weight: 700; fill: var(--ink); }
+.story-muted { font-size: 11px; fill: var(--ink-mute); }
+.story-axis { font-size: 11px; fill: var(--ink-mute); }
+.story-grid { stroke: var(--line); stroke-width: 1; }
+.story-axis-line { stroke: var(--line-strong); stroke-width: 1; }
+
+.story-bar-track { fill: color-mix(in srgb, var(--green-100) 65%, transparent); }
+.story-bar { fill: var(--green-500); transition: fill .15s ease; }
+.story-bar-link { cursor: pointer; }
+.story-bar-link:hover .story-bar,
+.story-bar-link:focus-visible .story-bar { fill: var(--green-700); }
+.story-bar-link:focus-visible { outline: none; }
+.story-bar-link:focus-visible .story-bar-track { stroke: var(--green-700); stroke-width: 2; }
+
+.story-donut-seg { stroke: var(--seg); transition: stroke-width .15s ease; }
+.story-donut-link { cursor: pointer; }
+.story-donut-link:hover .story-donut-seg,
+.story-donut-link:focus-visible .story-donut-seg { stroke-width: 36; }
+.story-donut-link:focus-visible { outline: none; }
+.story-donut-value { font-size: 30px; font-weight: 700; fill: var(--green-900); }
+@media (prefers-color-scheme: dark) { .story-donut-value { fill: var(--green-500); } }
+.story-legend-link { cursor: pointer; }
+.story-legend-link:hover .story-label { fill: var(--green-700); }
+.story-legend-link:focus-visible { outline: none; }
+.story-legend-link:focus-visible .story-label { fill: var(--green-700); text-decoration: underline; }
+
+.story-seg-link { cursor: pointer; }
+.story-seg-link:hover .story-fill { opacity: .78; }
+.story-seg-link:focus-visible { outline: none; }
+.story-seg-link:focus-visible .story-fill { stroke: var(--ink); stroke-width: 2; }
+.story-fill { fill: var(--seg); }
+
+.story-s0 { --seg: var(--green-900); }
+.story-s1 { --seg: var(--green-700); }
+.story-s2 { --seg: var(--green-600); }
+.story-s3 { --seg: var(--green-500); }
+.story-s4 { --seg: var(--amber-600); }
+.story-s5 { --seg: var(--blue-600); }
+.story-s6 { --seg: var(--red-600); }
+.story-s7 { --seg: var(--ink-mute); }
+.story-health-good { --seg: var(--green-500); }
+.story-health-fair { --seg: var(--amber-600); }
+.story-health-bad { --seg: var(--red-600); }
+.story-grade-1 { --seg: var(--red-600); }
+.story-grade-2 { --seg: var(--amber-600); }
+.story-grade-3 { --seg: var(--green-600); }
+.story-grade-0 { --seg: var(--blue-600); }
+
+.story-facts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
+  gap: .6rem; margin: .2rem 0 1rem;
+}
+.story-fact {
+  display: flex; flex-direction: column; gap: .1rem;
+  padding: .55rem .7rem; border: 1px solid var(--line);
+  border-radius: var(--radius-sm); background: var(--paper);
+}
+.story-fact-value { font-size: 1.25rem; font-weight: 700; color: var(--green-900); line-height: 1.2; }
+.story-fact-label { font-size: .74rem; color: var(--ink-mute); }
+@media (prefers-color-scheme: dark) { .story-fact-value { color: var(--green-500); } }
+
+.story-share + .story-share { margin-top: .9rem; }
+.story-entries {
+  display: grid; gap: .7rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  margin: .4rem 0 .6rem;
+}
+.story-entry {
+  display: flex; flex-direction: column; gap: .25rem;
+  padding: .8rem .9rem; border: 1px solid var(--line);
+  border-radius: var(--radius-sm); background: var(--paper); color: inherit;
+}
+.story-entry:hover { border-color: var(--green-600); text-decoration: none; }
+.story-entry:focus-visible { outline: 2px solid var(--green-500); outline-offset: 2px; }
+.story-entry-title { font-weight: 700; color: var(--link); }
+.story-entry-text { font-size: .84rem; color: var(--ink-soft); }
+.story-entry-go { font-size: .78rem; font-weight: 700; color: var(--green-700); margin-top: auto; }
+
+.story-more { margin: 1rem 0 0; font-size: .86rem; }
+.story-more strong { color: var(--link); }
+.story-notice { margin-top: 1rem; }
+.story-note-gap { margin-top: .8rem; }
+
+@media (max-width: 700px) {
+  .story-chapter { padding: 1rem .95rem; }
+  .story-lead { font-size: .94rem; }
+  .story-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .story-value { font-size: 11px; }
+}
+
+/* 圖表外框：窄螢幕時讓 640 寬的 viewBox 可以橫向捲動，而不是把 12px 字縮成 6px。 */
+.story-chart { min-width: 0; }
+@media (max-width: 700px) {
+  .story-chart { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .story-chart .story-svg { min-width: 520px; }
+}
+/* 有指定色票的長條（保護級別等）：用 --seg 蓋掉預設綠色。 */
+.story-bar-tone { fill: var(--seg); }
