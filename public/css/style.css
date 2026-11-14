@@ -373,6 +373,153 @@ table.table th + th, table.table td + td { border-left: 1px solid color-mix(in s
 }
 .legend-box .legend-row { display: flex; align-items: center; gap: .4rem; margin-bottom: .18rem; }
 
+/* ── 世界地圖（世界 → 珠三角 → 澳門） ────────────────────── */
+.map-mode {
+  display: inline-flex; margin-bottom: .5rem; overflow: hidden;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm); background: var(--card);
+}
+.map-mode-btn {
+  border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--ink-mute);
+  font: inherit; font-size: .82rem; font-weight: 600; padding: .34rem .85rem; cursor: pointer;
+}
+.map-mode-btn:last-child { border-right: 0; }
+.map-mode-btn:hover { color: var(--ink); background: color-mix(in srgb, var(--green-100) 45%, transparent); }
+.map-mode-btn.is-active { background: var(--green-700); color: #fff; }
+.map-mode-btn:focus-visible { outline: 2px solid var(--green-500); outline-offset: -2px; }
+
+/* 平面地圖的底圖切換（自製控制項，疊在地圖右上角） */
+.bm-toggle {
+  display: inline-flex; overflow: hidden;
+  border: 1px solid var(--line-strong); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--card) 92%, transparent);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .28);
+}
+.bm-btn {
+  border: 0; border-right: 1px solid var(--line); background: transparent; color: var(--ink-mute);
+  font: inherit; font-size: .82rem; font-weight: 600; padding: .34rem .85rem; cursor: pointer;
+}
+.bm-btn:last-child { border-right: 0; }
+.bm-btn:hover { color: var(--ink); background: color-mix(in srgb, var(--green-100) 45%, transparent); }
+.bm-btn[aria-pressed="true"] { background: var(--green-700); color: #fff; }
+.bm-btn:focus-visible { outline: 2px solid var(--green-500); outline-offset: -2px; }
+
+.map-stage { position: relative; }
+.map-stage.is-world #map { visibility: hidden; }   /* 保留版面尺寸，Leaflet 不必重算 */
+
+.worldmap {
+  position: absolute; inset: 0; overflow: hidden;
+  background: var(--paper); border: 1px solid var(--line); border-radius: var(--radius);
+  isolation: isolate;
+}
+.worldmap[hidden] { display: none; }
+.wm-svg {
+  display: block; width: 100%; height: 100%;
+  touch-action: none; cursor: grab; user-select: none;
+}
+.wm-svg:active { cursor: grabbing; }
+
+.wm-country {
+  fill: color-mix(in srgb, var(--green-100) 68%, var(--card));
+  stroke: color-mix(in srgb, var(--green-700) 70%, transparent);
+  stroke-width: 1; vector-effect: non-scaling-stroke;
+}
+.wm-pin { cursor: pointer; }
+.wm-pin-halo {
+  fill: var(--green-500); fill-opacity: .18;
+  stroke: var(--green-500); stroke-width: 1.5; stroke-opacity: .55;
+}
+.wm-pin-dot { fill: var(--green-500); stroke: var(--paper); stroke-width: 1.5; }
+.wm-pin-label {
+  fill: var(--ink); font-size: 12px; font-weight: 600;
+  paint-order: stroke; stroke: var(--paper); stroke-width: 3; stroke-linejoin: round;
+}
+.wm-pin:hover .wm-pin-halo { fill-opacity: .3; }
+.wm-prd {
+  /* 珠三角資料本身是閉合的陸地多邊形（廣東陸地＋27 個島），可以直接填色；
+     以前的註解誤以為「填色會蓋住海面」，導致 z 8.5–12.4 只剩空心海岸線，
+     看起來像地圖沒載入。填色後這一層就是中倍率的陸地底圖。 */
+  fill: color-mix(in srgb, var(--green-100) 42%, var(--card));
+  fill-opacity: .9;
+  stroke: var(--green-600); stroke-width: 1.1; stroke-opacity: .8; vector-effect: non-scaling-stroke;
+}
+.wm-parish {
+  fill-opacity: .22;
+  stroke: #6FC4AC; stroke-width: 1.1; stroke-opacity: .85;
+  vector-effect: non-scaling-stroke;
+}
+/* 「容器型」堂區（大堂區＝整個澳門半島）：只描邊，否則會蓋住裡面的小堂區 */
+.wm-parish--region {
+  fill: none;
+  stroke: color-mix(in srgb, var(--green-700) 80%, transparent);
+  stroke-dasharray: 5 3;
+}
+.wm-parish-label {
+  fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-linejoin: round;
+  pointer-events: none;
+}
+
+.wm-tree { stroke: var(--card); stroke-width: 1.1; vector-effect: non-scaling-stroke; cursor: pointer; }
+.wm-tree.good { fill: var(--green-500); }
+/* 一般＝黃：沿用平面地圖 .marker-dot.fair 的色票，兩套地圖的健康色才一致
+   （--amber-600 偏褐，和瀕危的紅在深色底上幾乎分不出來） */
+.wm-tree.fair { fill: #f59e0b; }
+.wm-tree.bad { fill: var(--red-600); }
+.wm-tree:hover { stroke: var(--ink); stroke-width: 2; }
+
+.wm-controls {
+  position: absolute; top: .6rem; right: .6rem; display: flex; flex-direction: column; gap: .35rem;
+  z-index: 2;
+}
+.wm-btn {
+  min-width: 2rem; padding: .34rem .55rem; border-radius: var(--radius-sm); cursor: pointer;
+  border: 1px solid var(--line-strong); background: color-mix(in srgb, var(--card) 92%, transparent);
+  color: var(--ink); font: inherit; font-size: .82rem; font-weight: 700; box-shadow: var(--shadow);
+}
+.wm-btn:hover { border-color: var(--green-600); color: var(--link); }
+.wm-btn:focus-visible { outline: 2px solid var(--green-500); outline-offset: 1px; }
+
+.wm-status {
+  position: absolute; top: .6rem; left: .6rem; margin: 0; max-width: 60%;
+  padding: .22rem .5rem; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--card) 90%, transparent); color: var(--ink-soft);
+  font-size: .74rem; pointer-events: none;
+}
+
+/* 衛星影像圖磚：連線時鋪在示意圖底下；抓不到圖磚就恢復原本的陸地填色 */
+.wm-tile { pointer-events: none; }
+.worldmap.has-tiles .wm-country { fill-opacity: .16; }
+/* prd 是粗輪廓的陸地多邊形（含河口），有衛星影像時不要再用它上色，否則海面會出現一塊綠 */
+.worldmap.has-tiles .wm-prd { fill-opacity: 0; }
+.wm-attrib {
+  position: absolute; right: .55rem; bottom: .4rem; z-index: 2;
+  margin: 0; padding: .12rem .42rem; border-radius: 4px;
+  font-size: .62rem; line-height: 1.4; color: var(--ink-mute);
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  pointer-events: none;
+}
+.wm-legend {
+  position: absolute; bottom: .6rem; left: .6rem; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem;
+  padding: .35rem .55rem; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--card) 90%, transparent); font-size: .74rem; color: var(--ink-soft);
+  pointer-events: none;
+}
+.wm-legend strong { color: var(--ink); font-size: .74rem; }
+.wm-legend span { display: inline-flex; align-items: center; gap: .25rem; }
+.wm-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; border: 1px solid var(--card); }
+.wm-dot.good { background: var(--green-500); }
+.wm-dot.fair { background: #f59e0b; }
+.wm-dot.bad { background: var(--red-600); }
+.wm-hint {
+  position: absolute; right: .6rem; bottom: .6rem; margin: 0;
+  padding: .18rem .45rem; border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--card) 84%, transparent); color: var(--ink-mute);
+  font-size: .7rem; pointer-events: none;
+}
+@media (max-width: 640px) {
+  .wm-hint { display: none; }
+  .wm-status { max-width: 55%; }
+}
+
 /* ── 路綫 ─────────────────────────────────────────────────── */
 .route-card { cursor: pointer; }
 .route-card:hover { border-color: var(--green-600); }
@@ -859,3 +1006,127 @@ summary { min-height: 28px; padding: .25rem 0; }
   gap: 1rem;
 }
 
+
+/* ── 專題導覽（#/story）───────────────────────────────────────
+   六章共用一般 .card；圖表是原生 SVG，顏色全部取自既有變數。
+   色票以 --seg 這個自訂屬性傳遞，讓同一個色塊類別同時可用於
+   SVG 的 fill（長條、堆疊）與 stroke（圓環）。 */
+#view-story > * + * { margin-top: 1.75rem; }
+
+.story-toc { display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .9rem; }
+.story-toc .chip { min-height: 34px; }
+
+.story-chapter { scroll-margin-top: 84px; }
+.story-chapter + .story-chapter { margin-top: 1.75rem; }
+.story-head { margin-bottom: .35rem; }
+.story-kicker {
+  display: inline-block; font-size: .74rem; font-weight: 700;
+  letter-spacing: .04em; color: var(--green-700);
+}
+.story-head h2 { margin: .1rem 0 .5rem; }
+.story-head h2:focus-visible { outline: 2px solid var(--green-500); outline-offset: 3px; }
+.story-lead { font-size: .98rem; color: var(--ink-soft); margin-bottom: .9rem; }
+.story-chapter h3 { margin: 1rem 0 .4rem; font-size: .95rem; }
+.story-chapter h3:first-of-type { margin-top: .2rem; }
+
+.story-svg { display: block; width: 100%; height: auto; overflow: visible; }
+.story-svg text { font-family: var(--font); }
+.story-label { font-size: 12px; fill: var(--ink-soft); }
+.story-value { font-size: 12px; font-weight: 700; fill: var(--ink); }
+.story-muted { font-size: 11px; fill: var(--ink-mute); }
+.story-axis { font-size: 11px; fill: var(--ink-mute); }
+.story-grid { stroke: var(--line); stroke-width: 1; }
+.story-axis-line { stroke: var(--line-strong); stroke-width: 1; }
+
+.story-bar-track { fill: color-mix(in srgb, var(--green-100) 65%, transparent); }
+.story-bar { fill: var(--green-500); transition: fill .15s ease; }
+.story-bar-link { cursor: pointer; }
+.story-bar-link:hover .story-bar,
+.story-bar-link:focus-visible .story-bar { fill: var(--green-700); }
+.story-bar-link:focus-visible { outline: none; }
+.story-bar-link:focus-visible .story-bar-track { stroke: var(--green-700); stroke-width: 2; }
+
+.story-donut-seg { stroke: var(--seg); transition: stroke-width .15s ease; }
+.story-donut-link { cursor: pointer; }
+.story-donut-link:hover .story-donut-seg,
+.story-donut-link:focus-visible .story-donut-seg { stroke-width: 36; }
+.story-donut-link:focus-visible { outline: none; }
+.story-donut-value { font-size: 30px; font-weight: 700; fill: var(--green-900); }
+@media (prefers-color-scheme: dark) { .story-donut-value { fill: var(--green-500); } }
+.story-legend-link { cursor: pointer; }
+.story-legend-link:hover .story-label { fill: var(--green-700); }
+.story-legend-link:focus-visible { outline: none; }
+.story-legend-link:focus-visible .story-label { fill: var(--green-700); text-decoration: underline; }
+
+.story-seg-link { cursor: pointer; }
+.story-seg-link:hover .story-fill { opacity: .78; }
+.story-seg-link:focus-visible { outline: none; }
+.story-seg-link:focus-visible .story-fill { stroke: var(--ink); stroke-width: 2; }
+.story-fill { fill: var(--seg); }
+
+.story-s0 { --seg: var(--green-900); }
+.story-s1 { --seg: var(--green-700); }
+.story-s2 { --seg: var(--green-600); }
+.story-s3 { --seg: var(--green-500); }
+.story-s4 { --seg: var(--amber-600); }
+.story-s5 { --seg: var(--blue-600); }
+.story-s6 { --seg: var(--red-600); }
+.story-s7 { --seg: var(--ink-mute); }
+.story-health-good { --seg: var(--green-500); }
+.story-health-fair { --seg: var(--amber-600); }
+.story-health-bad { --seg: var(--red-600); }
+.story-grade-1 { --seg: var(--red-600); }
+.story-grade-2 { --seg: var(--amber-600); }
+.story-grade-3 { --seg: var(--green-600); }
+.story-grade-0 { --seg: var(--blue-600); }
+
+.story-facts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
+  gap: .6rem; margin: .2rem 0 1rem;
+}
+.story-fact {
+  display: flex; flex-direction: column; gap: .1rem;
+  padding: .55rem .7rem; border: 1px solid var(--line);
+  border-radius: var(--radius-sm); background: var(--paper);
+}
+.story-fact-value { font-size: 1.25rem; font-weight: 700; color: var(--green-900); line-height: 1.2; }
+.story-fact-label { font-size: .74rem; color: var(--ink-mute); }
+@media (prefers-color-scheme: dark) { .story-fact-value { color: var(--green-500); } }
+
+.story-share + .story-share { margin-top: .9rem; }
+.story-entries {
+  display: grid; gap: .7rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  margin: .4rem 0 .6rem;
+}
+.story-entry {
+  display: flex; flex-direction: column; gap: .25rem;
+  padding: .8rem .9rem; border: 1px solid var(--line);
+  border-radius: var(--radius-sm); background: var(--paper); color: inherit;
+}
+.story-entry:hover { border-color: var(--green-600); text-decoration: none; }
+.story-entry:focus-visible { outline: 2px solid var(--green-500); outline-offset: 2px; }
+.story-entry-title { font-weight: 700; color: var(--link); }
+.story-entry-text { font-size: .84rem; color: var(--ink-soft); }
+.story-entry-go { font-size: .78rem; font-weight: 700; color: var(--green-700); margin-top: auto; }
+
+.story-more { margin: 1rem 0 0; font-size: .86rem; }
+.story-more strong { color: var(--link); }
+.story-notice { margin-top: 1rem; }
+.story-note-gap { margin-top: .8rem; }
+
+@media (max-width: 700px) {
+  .story-chapter { padding: 1rem .95rem; }
+  .story-lead { font-size: .94rem; }
+  .story-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .story-value { font-size: 11px; }
+}
+
+/* 圖表外框：窄螢幕時讓 640 寬的 viewBox 可以橫向捲動，而不是把 12px 字縮成 6px。 */
+.story-chart { min-width: 0; }
+@media (max-width: 700px) {
+  .story-chart { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .story-chart .story-svg { min-width: 520px; }
+}
+/* 有指定色票的長條（保護級別等）：用 --seg 蓋掉預設綠色。 */
+.story-bar-tone { fill: var(--seg); }

@@ -11,12 +11,16 @@
  *
  * 預載清單由 `scripts/build-sw.mjs` 依實際檔案產生，不要手改標記區內的內容。
  */
-const VERSION = 'v1.1.1';
+const VERSION = 'v1.2.0';
 const SHELL_CACHE = `mht-shell-${VERSION}`;
 const DATA_CACHE = `mht-data-${VERSION}`;
 const MEDIA_CACHE = `mht-media-${VERSION}`;
+const TILEMETA_CACHE = `mht-tilemeta-${VERSION}`;   // 圖磚存檔時間（判斷要不要更新）
 const PHOTO_MAX = 150;      // 最多保留 150 張古樹照片
-const TILE_MAX = 200;       // 最多保留 200 張看過的地圖圖磚
+const TILE_MAX = 480;       // 最多保留 480 張看過的地圖圖磚（街道圖＋衛星影像；守門測試要求 ≤ 500）
+// 圖磚到期時間：超過就在背景重抓一次（＝「每過一段時間更新一次地圖」）。
+// 只影響「有沒有新版」，離線時仍照樣回舊圖磚，不會變空白。
+const TILE_TTL = 14 * 24 * 60 * 60 * 1000;   // 14 天
 
 // >>> 預載清單 開始（由 scripts/build-sw.mjs 產生）
 const PRECACHE = [
@@ -43,7 +47,9 @@ const PRECACHE = [
   '/js/pwa.js',
   '/js/qr.js',
   '/js/routes.js',
+  '/js/story.js',
   '/js/ui.js',
+  '/js/worldmap.js',
   '/manifest.webmanifest',
   '/offline.html',
   '/vendor/chart.umd.js',
@@ -109,7 +115,7 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    const keep = new Set([SHELL_CACHE, DATA_CACHE, MEDIA_CACHE]);
+    const keep = new Set([SHELL_CACHE, DATA_CACHE, MEDIA_CACHE, TILEMETA_CACHE]);
     for (const name of await caches.keys()) {
       if (name.startsWith('mht-') && !keep.has(name)) await caches.delete(name);
     }
@@ -181,6 +187,43 @@ async function cacheFirst(request, cacheName, max) {
   return res;
 }
 
+/** 圖磚的「存檔時間」存在這個附屬快取裡（opaque 回應讀不到標頭，body 也不能碰）。 */
+async function tileStamp(request, time) {
+  const meta = await caches.open(TILEMETA_CACHE);
+  await meta.put(request, new Response(String(time)));
+}
+
+/**
+ * 圖磚策略：有快取就先給（離線也能看整片地圖），
+ * 超過 TILE_TTL 再在背景抓新版——這就是「定期更新地圖」的機制。
+ * 注意：ArcGIS 圖磚是 opaque 回應，body 只能原樣 clone，不能轉成 blob（會變 0 bytes）。
+ */
+async function tileWithRefresh(request, cacheName, max, ttl) {
+  const cache = await caches.open(cacheName);
+  const meta = await caches.open(TILEMETA_CACHE);
+  const hit = await cache.match(request, { ignoreSearch: true });
+  const stamp = hit ? await meta.match(request, { ignoreSearch: true }) : null;
+  const at = stamp ? Number(await stamp.text()) : 0;
+  if (hit && Date.now() - at < ttl) return hit;
+  const refresh = (async () => {
+    const res = await fetch(request);
+    if (res && (res.ok || res.type === 'opaque')) {
+      await cache.put(request, res.clone());
+      await tileStamp(request, Date.now());
+      if (max) {
+        await trim(cacheName, max);
+        await trim(TILEMETA_CACHE, max);
+      }
+    }
+    return res;
+  })();
+  if (hit) {
+    refresh.catch(() => {});   // 先回舊的，新版在背景補（不阻塞回應）
+    return hit;
+  }
+  return refresh;
+}
+
 /**
  * 由快取回答時加一個標記標頭。
  * 為什麼需要：離線時 API 仍回得出 200（來自快取），前端光看狀態碼會以為「已連線」，
@@ -236,10 +279,12 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // 跨網域：只快取 OpenStreetMap 圖磚（使用者看過的才存，遵守圖磚政策）
+  // 跨網域：只快取地圖圖磚（使用者看過的才存，遵守圖磚政策）
   if (url.origin !== self.location.origin) {
-    if (/^[abc]\.tile\.openstreetmap\.org$/.test(url.hostname)) {
-      event.respondWith(cacheFirst(req, MEDIA_CACHE, TILE_MAX));
+    const isTile = /^[abc]\.tile\.openstreetmap\.org$/.test(url.hostname)
+      || url.hostname === 'server.arcgisonline.com';   // 平面地圖的衛星影像／世界地圖圖磚
+    if (isTile) {
+      event.respondWith(tileWithRefresh(req, MEDIA_CACHE, TILE_MAX, TILE_TTL));
     }
     return;                                          // 其他跨網域一律不介入
   }

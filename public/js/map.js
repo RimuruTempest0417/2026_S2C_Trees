@@ -1,5 +1,6 @@
 /** 地圖查詢：多條件篩選、叢集標記、半徑搜尋、單株詳情與相片。 */
 import { api, cached } from './api.js';
+import { createWorldMap } from './worldmap.js';
 import {
   esc, num, healthBadge, gradeBadge, safeUrl, loading, openModal, closeModal, toast, downloadCsv, healthColor,
   errDetail, errText,
@@ -55,7 +56,7 @@ export async function render(section, params) {
   section.innerHTML = `
     <div class="page-head">
       <h1>地圖查詢</h1>
-      <p>以堂區、品種、分級、健康狀況、樹齡區間與關鍵字篩選 658 株古樹；可在地圖上任意點擊設定中心並做半徑搜尋，標記顏色代表健康狀況（綠＝健康、黃＝一般、紅＝瀕危）。</p>
+      <p>以堂區、品種、分級、健康狀況、樹齡區間與關鍵字篩選 658 株古樹；「世界地圖」可從世界一路縮放至珠三角、澳門各堂區與單棵古樹，「平面地圖」則是可做半徑搜尋的街道底圖。標記顏色代表健康狀況（綠＝健康、黃＝一般、紅＝瀕危）。</p>
     </div>
     <div class="map-layout">
       <div class="card">
@@ -69,7 +70,14 @@ export async function render(section, params) {
         <div class="tree-list card-scroll" id="tree-list" style="max-height:44vh;margin-top:.5rem"></div>
       </div>
       <div>
-        <div id="map"></div>
+        <div class="map-mode" role="group" aria-label="地圖顯示模式">
+          <button type="button" class="map-mode-btn is-active" data-map-mode="world" aria-pressed="true">世界地圖</button>
+          <button type="button" class="map-mode-btn" data-map-mode="flat" aria-pressed="false">平面地圖</button>
+        </div>
+        <div class="map-stage is-world">
+          <div id="map"></div>
+          <div id="worldmap" class="worldmap"></div>
+        </div>
         <div class="row" style="margin-top:.5rem">
           <span class="tiny muted">底圖 © OpenStreetMap 貢獻者。古樹座標、冠幅、胸徑、描述與照片為市政署「澳門自然網」公開資料；實地請以現場標牌為準。</span>
           <span class="spacer"></span>
@@ -88,6 +96,8 @@ export async function render(section, params) {
     total: 0,
     radius: null,
     focus: null,
+    mode: 'world',
+    wm: null,
     filters: {
       parish: params.get('parish') || '',
       species: params.get('species') || '',
@@ -141,10 +151,54 @@ export async function render(section, params) {
 
   // ── 地圖初始化 ────────────────────────────────────────
   const map = window.L.map('map', { center: MACAU_CENTER, zoom: 12, zoomControl: true, preferCanvas: false });
-  window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  // 底圖：街道圖（OSM）與衛星影像（Esri World Imagery＋地名參考層）可切換。
+  // 衛星影像與 OSM 一樣是外部圖磚服務，兩者都需要連網；離線時標記與篩選照常運作，
+  // 只是沒有底圖。署名依 Esri 要求標示資料來源。
+  const streetLayer = window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  }).addTo(map);
+  });
+  const satelliteLayer = window.L.layerGroup([
+    window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      maxNativeZoom: 19,
+      attribution: '影像 &copy; Esri、Maxar、Earthstar Geographics',
+    }),
+    window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      maxNativeZoom: 19,
+    }),
+  ]);
+  streetLayer.addTo(map);
+  // 底圖切換：自製控制項。Leaflet 內建的 L.control.layers 需要
+  // vendor/leaflet/images/layers.png，本專案的 vendor 目錄沒有那張圖（404 會變空白方塊）。
+  const basemapButtons = [];
+  function setBasemap(key) {
+    const satellite = key === 'satellite';
+    if (satellite) { map.removeLayer(streetLayer); satelliteLayer.addTo(map); }
+    else { map.removeLayer(satelliteLayer); streetLayer.addTo(map); }
+    for (const b of basemapButtons) b.setAttribute('aria-pressed', String(b.dataset.basemap === key));
+  }
+  const BasemapToggle = window.L.Control.extend({
+    options: { position: 'topright' },
+    onAdd() {
+      const box = window.L.DomUtil.create('div', 'bm-toggle');
+      box.setAttribute('role', 'group');
+      box.setAttribute('aria-label', '底圖切換');
+      window.L.DomEvent.disableClickPropagation(box);
+      for (const [key, label] of [['street', '街道圖'], ['satellite', '衛星影像']]) {
+        const b = window.L.DomUtil.create('button', 'bm-btn', box);
+        b.type = 'button';
+        b.textContent = label;
+        b.dataset.basemap = key;
+        b.setAttribute('aria-pressed', String(key === 'street'));
+        b.addEventListener('click', () => setBasemap(key));
+        basemapButtons.push(b);
+      }
+      return box;
+    },
+  });
+  new BasemapToggle().addTo(map);
   state.map = map;
 
   state.layer = window.L.markerClusterGroup
@@ -175,6 +229,42 @@ export async function render(section, params) {
   });
   const radiusCircle = window.L.circle(MACAU_CENTER, { radius: 0, color: '#1d4ed8', weight: 1.5, fillOpacity: 0.08 });
 
+  // ── 世界地圖／平面地圖切換 ────────────────────────────
+  // 預設「世界地圖」；切到平面地圖時把 SVG 實例整個銷毀，兩套地圖不會同時吃事件。
+  const wmBox = section.querySelector('#worldmap');
+  const modeButtons = [...section.querySelectorAll('[data-map-mode]')];
+
+  function showMode(mode) {
+    state.mode = mode === 'flat' ? 'flat' : 'world';
+    const world = state.mode === 'world';
+    section.querySelector('.map-stage').classList.toggle('is-world', world);
+    for (const btn of modeButtons) {
+      const on = btn.dataset.mapMode === state.mode;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-pressed', String(on));
+    }
+    if (world) {
+      wmBox.hidden = false;
+      if (state.wm) state.wm.setTrees(state.trees);
+      else {
+        state.wm = createWorldMap(wmBox, {
+          trees: state.trees,
+          onSelect: (no) => { showDetail(no); },   // 沿用本站既有的古樹詳情彈窗
+        });
+      }
+    } else if (state.wm) {
+      state.wm.destroy();
+      state.wm = null;
+      wmBox.hidden = true;
+      map.invalidateSize();   // 平面地圖先前被隱藏，回來時要重算容器尺寸
+    }
+  }
+
+  for (const btn of modeButtons) {
+    btn.addEventListener('click', () => showMode(btn.dataset.mapMode));
+  }
+  showMode('world');
+
   // ── 查詢與繪製 ────────────────────────────────────────
   async function load({ fit = true } = {}) {
     const list = section.querySelector('#tree-list');
@@ -189,6 +279,7 @@ export async function render(section, params) {
     const data = await api.trees(q);
     state.trees = data.trees;
     state.total = data.total;
+    if (state.wm) state.wm.setTrees(state.trees);   // 篩選結果同步到世界地圖
 
     section.querySelector('#result-count').textContent = `符合 ${num(data.count)} 株（共 ${num(data.total)} 筆）`;
     section.querySelector('#btn-csv').disabled = !data.trees.length;
@@ -223,6 +314,10 @@ export async function render(section, params) {
       const no = item.dataset.tree;
       const lat = Number(item.dataset.lat), lon = Number(item.dataset.lon);
       list.querySelectorAll('.tree-item').forEach((x) => x.classList.toggle('active', x === item));
+      if (state.mode === 'world' && state.wm) {
+        state.wm.focusTree(no);       // 世界地圖模式：直接縮放定位到這一株
+        return;
+      }
       if (state.markers.has(no)) {
         map.setView([lat, lon], Math.max(map.getZoom(), 16), { animate: true });
         openMarker(state.markers.get(no));
@@ -462,12 +557,15 @@ export async function render(section, params) {
   });
 
   section.querySelector('#btn-fit').addEventListener('click', () => {
+    if (state.mode === 'world') { state.wm && state.wm.focusMacau(); return; }
     const pts = state.trees.filter((t) => t.lat != null).map((t) => [t.lat, t.lon]);
     if (pts.length) map.fitBounds(pts, { padding: [40, 40], maxZoom: 16 });
   });
 
   section.querySelector('#btn-my-loc').addEventListener('click', () => {
     if (!navigator.geolocation) { toast('瀏覽器不支援定位'); return; }
+    // 定位與半徑搜尋是平面地圖的功能，先切回去再進行
+    if (state.mode !== 'flat') showMode('flat');
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const center = [pos.coords.latitude, pos.coords.longitude];
@@ -502,10 +600,14 @@ export async function render(section, params) {
   const focus = params.get('tree');
   if (focus) {
     await showDetail(focus);
-    const m = state.markers.get(String(focus));
-    if (m) {
-      map.setView(m.getLatLng(), Math.max(map.getZoom(), 17), { animate: false });
-      openMarker(m);
+    if (state.mode === 'world') {
+      state.wm && state.wm.focusTree(focus);
+    } else {
+      const m = state.markers.get(String(focus));
+      if (m) {
+        map.setView(m.getLatLng(), Math.max(map.getZoom(), 17), { animate: false });
+        openMarker(m);
+      }
     }
   }
 
@@ -522,6 +624,12 @@ export async function render(section, params) {
   }
 
   return {
-    destroy: () => { if (state && state.map) { state.map.remove(); state.map = null; state = null; } },
+    destroy: () => {
+      if (state && state.wm) {
+        try { state.wm.destroy(); } catch { /* 已經銷毀 */ }
+        state.wm = null;
+      }
+      if (state && state.map) { state.map.remove(); state.map = null; state = null; }
+    },
   };
 }

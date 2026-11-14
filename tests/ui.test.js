@@ -7,10 +7,11 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url))) + path.sep;
 const html = readFileSync(`${ROOT}public/index.html`, 'utf8');
 const css = readFileSync(`${ROOT}public/css/style.css`, 'utf8');
 

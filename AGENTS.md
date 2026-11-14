@@ -15,7 +15,7 @@
 ## 修改後一定要跑
 
 ```bash
-npm test                          # 393 項；任何一項失敗都不算完成
+npm test                          # 399 項；任何一項失敗都不算完成
 npm run check                     # node --check 掃描全部 JS
 node scripts/build-sw.mjs --check # PWA 預載清單要與版本一致
 ```

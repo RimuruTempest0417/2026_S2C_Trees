@@ -19,6 +19,7 @@ const VIEWS = {
   chemistry: () => import('./chemistry.js'),
   policy: () => import('./policy.js'),
   knowledge: () => import('./knowledge.js'),
+  story: () => import('./story.js'),
   qr: () => import('./qr.js'),
   card: () => import('./card.js'),
 };
@@ -34,6 +35,7 @@ const TITLES = {
   chemistry: '化學視角',
   policy: '政策方案',
   knowledge: '保育科普',
+  story: '專題導覽',
   qr: 'QR 碼',
   card: '列印',
 };
