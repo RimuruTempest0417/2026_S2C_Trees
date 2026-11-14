@@ -151,10 +151,54 @@ export async function render(section, params) {
 
   // ── 地圖初始化 ────────────────────────────────────────
   const map = window.L.map('map', { center: MACAU_CENTER, zoom: 12, zoomControl: true, preferCanvas: false });
-  window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  // 底圖：街道圖（OSM）與衛星影像（Esri World Imagery＋地名參考層）可切換。
+  // 衛星影像與 OSM 一樣是外部圖磚服務，兩者都需要連網；離線時標記與篩選照常運作，
+  // 只是沒有底圖。署名依 Esri 要求標示資料來源。
+  const streetLayer = window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  }).addTo(map);
+  });
+  const satelliteLayer = window.L.layerGroup([
+    window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      maxNativeZoom: 19,
+      attribution: '影像 &copy; Esri、Maxar、Earthstar Geographics',
+    }),
+    window.L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      maxNativeZoom: 19,
+    }),
+  ]);
+  streetLayer.addTo(map);
+  // 底圖切換：自製控制項。Leaflet 內建的 L.control.layers 需要
+  // vendor/leaflet/images/layers.png，本專案的 vendor 目錄沒有那張圖（404 會變空白方塊）。
+  const basemapButtons = [];
+  function setBasemap(key) {
+    const satellite = key === 'satellite';
+    if (satellite) { map.removeLayer(streetLayer); satelliteLayer.addTo(map); }
+    else { map.removeLayer(satelliteLayer); streetLayer.addTo(map); }
+    for (const b of basemapButtons) b.setAttribute('aria-pressed', String(b.dataset.basemap === key));
+  }
+  const BasemapToggle = window.L.Control.extend({
+    options: { position: 'topright' },
+    onAdd() {
+      const box = window.L.DomUtil.create('div', 'bm-toggle');
+      box.setAttribute('role', 'group');
+      box.setAttribute('aria-label', '底圖切換');
+      window.L.DomEvent.disableClickPropagation(box);
+      for (const [key, label] of [['street', '街道圖'], ['satellite', '衛星影像']]) {
+        const b = window.L.DomUtil.create('button', 'bm-btn', box);
+        b.type = 'button';
+        b.textContent = label;
+        b.dataset.basemap = key;
+        b.setAttribute('aria-pressed', String(key === 'street'));
+        b.addEventListener('click', () => setBasemap(key));
+        basemapButtons.push(b);
+      }
+      return box;
+    },
+  });
+  new BasemapToggle().addTo(map);
   state.map = map;
 
   state.layer = window.L.markerClusterGroup

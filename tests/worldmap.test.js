@@ -161,3 +161,15 @@ test('index.html 未被改壞：模組入口、檢視容器與彈窗都還在', 
   const tags = html.split('<script').slice(1).map((p) => p.slice(0, p.indexOf('>') + 1));
   assert.ok(tags.every((t) => t.includes('src=')), 'index.html 不應出現內嵌 script');
 });
+
+test('平面地圖提供街道圖／衛星影像底圖切換（沿用 CSP 已放行的圖磚來源）', () => {
+  assert.ok(mapJs.includes('BasemapToggle'), '缺少底圖切換控制項（自製，不用缺圖的 L.control.layers）');
+  assert.ok(mapJs.includes('World_Imagery'), '缺少 Esri 衛星影像圖層');
+  assert.ok(mapJs.includes('衛星影像') && mapJs.includes('街道圖'), '缺少兩個底圖選項字樣');
+  assert.ok(mapJs.includes('tile.openstreetmap.org'), '街道圖（OSM）應保留');
+  assert.ok(css.includes('.bm-toggle') && css.includes('.bm-btn'), '缺少底圖切換樣式');
+  // 圖磚來源必須在 CSP 的 img-src 白名單裡，否則正式站會被擋成空白
+  const vercelJson = readFileSync(`${ROOT}vercel.json`, 'utf8');
+  assert.ok(vercelJson.includes('server.arcgisonline.com'), 'CSP 的 img-src 必須放行 arcgisonline');
+  assert.ok(vercelJson.includes('tile.openstreetmap.org'), 'CSP 的 img-src 必須放行 openstreetmap');
+});
