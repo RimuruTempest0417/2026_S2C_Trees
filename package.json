@@ -1,9 +1,9 @@
 {
   "name": "macau-heritage-trees",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "private": true,
   "type": "module",
-  "description": "澳門古樹保育研究平台 — 資料庫 Supabase (PostgreSQL)、部署 Vercel Serverless Functions",
+  "description": "澳門古樹保育研究平台 — 資料庫 Neon PostgreSQL、照片 Vercel Blob、部署 Vercel Serverless Functions",
   "engines": {
     "node": ">=20"
   },
