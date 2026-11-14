@@ -7,8 +7,10 @@
 - **前端**：原生 ES Modules、Leaflet（地圖）、Chart.js（圖表）、KaTeX ＋ marked（科普文章）
 - **原始資料**：`source-data/古樹.csv`（658 筆）、**澳門市政署「澳門自然網」古樹名木專頁（658 筆逐株資料與官方照片）**、《古樹保育研究(1).docx》（需求文件）
 
-[![每日擷取官方古樹名錄](https://github.com/RimuruTempest0417/old_trees/actions/workflows/refresh-official-data.yml/badge.svg)](https://github.com/RimuruTempest0417/old_trees/actions/workflows/refresh-official-data.yml)
+[![每日擷取官方古樹名錄](https://github.com/RimuruTempest0417/2026_S2C_Trees/actions/workflows/refresh-official-data.yml/badge.svg)](https://github.com/RimuruTempest0417/2026_S2C_Trees/actions/workflows/refresh-official-data.yml)
 [![線上網站](https://img.shields.io/badge/%E7%B7%9A%E4%B8%8A%E7%B6%B2%E7%AB%99-old--trees--mylearning.vercel.app-2ea44f)](https://old-trees-mylearning.vercel.app)
+
+> 想參與開發？先讀 [CONTRIBUTING.md](./CONTRIBUTING.md)：分支模型、PR 規則、送 PR 前要跑的測試。
 
 ---
 
@@ -425,7 +427,7 @@ node  scripts/vendor.mjs            # 複製前端第三方函式庫到 public/v
 
 **方式 A：從 GitHub 匯入（推薦，之後每次 push 自動部署）**
 
-1. 到 [vercel.com/new](https://vercel.com/new)，選擇 GitHub 倉庫 `RimuruTempest0417/old_trees`。
+1. 到 [vercel.com/new](https://vercel.com/new)，選擇 GitHub 倉庫 `RimuruTempest0417/2026_S2C_Trees`。
 2. Framework Preset 選 **Other**，Root Directory 保持預設（`./`），Build Command 與 Output Directory **全部留空**——`vercel.json` 已設定 `framework: null` 與 `outputDirectory: public`，會自動套用。
 3. 在 **Environment Variables** 加入 `SUPABASE_URL` 與 `SUPABASE_SERVICE_ROLE_KEY`。
 4. 按 **Deploy**。之後每次 push 到 `main` 都會自動重新部署。

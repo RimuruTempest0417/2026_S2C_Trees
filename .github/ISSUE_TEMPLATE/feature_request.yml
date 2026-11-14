@@ -1,0 +1,40 @@
+name: 功能建議
+description: 想加一個功能或改一個流程
+title: "[feat] "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 想解決什麼問題
+      description: 先講「誰在什麼情況下卡住」，不要一開始就講解法
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 打算怎麼做
+      description: 一句話版本＋必要細節
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 影響範圍
+      options:
+        - 前端介面
+        - 資料／分析
+        - 資料庫／API
+        - 文件
+        - 部署／設定
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: 怎樣算做完（驗收條件）
+      value: |
+        - [ ]
+        - [ ]
+    validations:
+      required: true
