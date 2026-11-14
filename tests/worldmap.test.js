@@ -21,6 +21,7 @@ const mapJs = readFileSync(`${ROOT}public/js/map.js`, 'utf8');
 const css = readFileSync(`${ROOT}public/css/style.css`, 'utf8');
 const html = readFileSync(`${ROOT}public/index.html`, 'utf8');
 const pkg = JSON.parse(readFileSync(`${ROOT}package.json`, 'utf8'));
+const sw = readFileSync(`${ROOT}public/sw.js`, 'utf8');
 
 const HANDLER_NAMES = ['onclick', 'onload', 'onerror', 'onchange', 'oninput', 'onsubmit', 'onmouseover', 'ontouchstart'];
 
@@ -117,12 +118,34 @@ test('世界地圖與地圖頁都不得有行內事件屬性（CSP script-src \'
   }
 });
 
-test('worldmap.js 不引入 CDN、不新増套件，也不使用 innerHTML', () => {
+test('worldmap.js 只用 ArcGIS 衛星圖磚這一個外部來源，不引入 CDN，也不用 innerHTML', () => {
   assert.ok(!worldmap.includes('<script'), '不得插入 script 標籤');
-  assert.ok(!worldmap.includes('https://'), '不得引入外部 CDN 資源');
+  // 規則放寬（2026-11）：為了讓世界地圖在珠三角倍率疊衛星影像，允許唯一的圖磚來源
+  // ArcGIS World_Imagery（CSP 的 img-src 早已放行，和平面地圖用同一組圖源）。
+  // 其他任何外部網址仍然不允許。
+  const TILE_PREFIX = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/';
+  // SVG／xlink 的命名空間是識別字，不是網路資源
+  const ALLOWED = [TILE_PREFIX, 'http://www.w3.org/2000/svg', 'http://www.w3.org/1999/xlink'];
+  const externals = [...worldmap.matchAll(/https?:\/\/[^\s'`")\\]+/g)].map((m) => m[0]);
+  const unexpected = externals.filter((u) => !ALLOWED.some((p) => u.startsWith(p)));
+  assert.deepEqual(unexpected, [], `worldmap.js 只允許 ArcGIS 圖磚網址，出現了：${unexpected.join(', ')}`);
   assert.ok(!worldmap.includes('.innerHTML'), '世界地圖應以 DOM API 建立節點');
   const deps = Object.keys(pkg.dependencies || {});
   assert.deepEqual(deps.sort(), ['@neondatabase/serverless', '@vercel/blob'], '不得新增執行期套件');
+});
+
+test('世界地圖：珠三角倍率起疊衛星影像，抓不到圖磚就退回示意圖，圖磚會定期更新', () => {
+  assert.ok(worldmap.includes('TILE_MIN_Z'), '缺少圖磚啟用的倍率');
+  assert.ok(worldmap.includes('World_Imagery'), '缺少 ArcGIS World_Imagery 圖磚層');
+  assert.ok(worldmap.includes('has-tiles'), '缺少「已載入圖磚」狀態（陸地填色要靠它變淡）');
+  assert.ok(worldmap.includes("addEventListener('error', onTileError)"), '圖磚失敗必須有退回機制');
+  assert.ok(worldmap.includes("addEventListener('online', onOnline)"), '恢復連線時要重抓圖磚');
+  assert.ok(worldmap.includes('衛星影像 © Esri'), '缺少 Esri 署名');
+  assert.ok(css.includes('.wm-tile'), '缺少圖磚樣式');
+  assert.ok(css.includes('has-tiles'), '缺少圖磚狀態下的填色覆寫（離線才看得回示意圖）');
+  assert.ok(sw.includes('server.arcgisonline.com'), 'Service Worker 應快取 ArcGIS 圖磚（離線可用）');
+  assert.ok(sw.includes('TILE_TTL'), 'Service Worker 應有圖磚到期時間（定期更新）');
+  assert.ok(sw.includes('tileWithRefresh'), 'Service Worker 應使用「先回快取、過期背景更新」策略');
 });
 
 test('地圖查詢頁提供 [世界地圖 | 平面地圖] 切換，並接上既有詳情彈窗', () => {
