@@ -71,7 +71,7 @@ git push -u origin miao/你的功能
 ## 四、送 PR 前一定要跑（三項全過）
 
 ```bash
-npm test                          # 目前 393 項
+npm test                          # 目前 399 項
 npm run check                     # 語法檢查（95 檔）
 node scripts/build-sw.mjs --check # Service Worker 預載清單
 ```
