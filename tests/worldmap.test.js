@@ -2,11 +2,12 @@
  * 世界地圖（世界 → 珠三角 → 澳門）的守門測試。
  *
  * 這頁地圖是將合作組員的 SVG pan/zoom 作品併進本站後重寫的版本，因此測試守住：
- * 1. 地理資料檔存在且數量正確（119 國、8 堂區），堂區座標落在澳門範圍
- * 2. worldmap.js 真的匯出 createWorldMap，且具備完整 API 與 Web Mercator 投影
- * 3. 地圖查詢頁有「世界地圖／平面地圖」切換，且切換時會銷毀 SVG
- * 4. 不得出現行內事件屬性（CSP script-src 'self' 會直接擋掉整段 JS）
- * 5. 不得引入 CDN 或新套件；index.html 不能被改壞
+ * 1. 地理資料分三批（粗層 31 KB → 細層 → 澳門），數量正確、堂區座標落在澳門範圍
+ * 2. 首屏只抓粗層，細層背景補、澳門縮放進去才抓、樹點只畫視窗內
+ * 3. worldmap.js 真的匯出 createWorldMap，且具備完整 API 與 Web Mercator 投影
+ * 4. 地圖查詢頁有「世界地圖／平面地圖」切換，且切換時會銷毀 SVG
+ * 5. 不得出現行內事件屬性（CSP script-src 'self' 會直接擋掉整段 JS）
+ * 6. 不得引入 CDN 或新套件；index.html 不能被改壞
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,7 +16,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import path from 'node:path';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url))) + path.sep;
-const GEO_PATH = `${ROOT}public/data/world-geo.json`;
 const worldmap = readFileSync(`${ROOT}public/js/worldmap.js`, 'utf8');
 const mapJs = readFileSync(`${ROOT}public/js/map.js`, 'utf8');
 const css = readFileSync(`${ROOT}public/css/style.css`, 'utf8');
@@ -39,19 +39,37 @@ function findInlineHandlers(text) {
   return hits;
 }
 
-test('world-geo.json 可解析，收錄 119 國、8 個堂區與珠三角輪廓', () => {
-  assert.ok(existsSync(GEO_PATH), '缺少 public/data/world-geo.json');
-  assert.ok(statSync(GEO_PATH).size > 50_000, '地理資料檔太小，可能抽取不完整');
-  const geo = JSON.parse(readFileSync(GEO_PATH, 'utf8'));
-  assert.equal(geo.world.length, 119, `world 應為 119 筆，實際 ${geo.world.length}`);
-  assert.equal(geo.parishes.length, 8, `parishes 應為 8 筆，實際 ${geo.parishes.length}`);
-  assert.ok(Array.isArray(geo.prd) && geo.prd.length > 0, '缺少 prd 珠三角輪廓');
+test('分批載入：首屏只抓粗層，細層背景補、澳門縮放進去才抓、樹點只畫視窗內', () => {
+  assert.ok(worldmap.includes("'/data/world-coarse.json'"), '缺少粗層路徑');
+  assert.ok(worldmap.includes("'/data/world-low.json'"), '缺少細層路徑');
+  assert.ok(worldmap.includes("'/data/macau.json'"), '缺少澳門資料路徑');
+  assert.ok(worldmap.includes('ensureMacau'), '缺少「進場才抓澳門」的邏輯');
+  assert.ok(worldmap.includes('requestIdleCallback'), '細層應在首屏後才抓');
+  assert.ok(worldmap.includes('visible'), '缺少樹點視窗裁切');
+});
 
-  for (const c of geo.world) {
-    assert.equal(typeof c.n, 'string');
-    assert.ok(Array.isArray(c.r) && c.r.length, `${c.n} 沒有輪廓`);
-  }
-  for (const p of geo.parishes) {
+test('地理資料分批：粗層（31 KB）→ 細層 → 澳門，數量與座標都正確', () => {
+  const COARSE = `${ROOT}public/data/world-coarse.json`;
+  const LOW = `${ROOT}public/data/world-low.json`;
+  const MACAU = `${ROOT}public/data/macau.json`;
+  for (const p of [COARSE, LOW, MACAU]) assert.ok(existsSync(p), `缺少 ${p}`);
+
+  // 第一批要小：手機上首屏不能等 200 KB
+  assert.ok(statSync(COARSE).size < 45_000, `world-coarse.json 應該 < 45 KB，實際 ${(statSync(COARSE).size / 1024).toFixed(1)} KB`);
+
+  const coarse = JSON.parse(readFileSync(COARSE, 'utf8'));
+  const low = JSON.parse(readFileSync(LOW, 'utf8'));
+  const macau = JSON.parse(readFileSync(MACAU, 'utf8'));
+
+  assert.equal(coarse.countries.length, 119, `粗層應為 119 國，實際 ${coarse.countries.length}`);
+  assert.equal(low.countries.length, 119, `細層應為 119 國，實際 ${low.countries.length}`);
+  assert.equal(macau.parishes.length, 8, `堂區應為 8 筆，實際 ${macau.parishes.length}`);
+  assert.ok(Array.isArray(macau.prd) && macau.prd.length > 0, '缺少 prd 珠三角輪廓');
+  // 細層的點數一定要比粗層多，否則「先粗後細」沒有意義
+  const pts = (list) => list.reduce((n, c) => n + c.r.reduce((m, r) => m + r.length, 0), 0);
+  assert.ok(pts(low.countries) > pts(coarse.countries) * 2, '細層點數應遠多於粗層');
+
+  for (const p of macau.parishes) {
     assert.equal(typeof p.n, 'string');
     assert.ok(Array.isArray(p.o) && p.o.length, `${p.n} 沒有外環`);
     for (const ring of p.o) {

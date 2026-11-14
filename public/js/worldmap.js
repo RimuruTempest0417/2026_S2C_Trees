@@ -12,7 +12,6 @@
  */
 
 const NS = 'http://www.w3.org/2000/svg';
-const GEO_URL = '/data/world-geo.json';
 const RAD = Math.PI / 180;
 const MAX_LAT = 85.05112878;
 const BASE = 256;          // z = 0 時整個世界寬 256px，與 Web Mercator 圖磚一致
@@ -46,6 +45,19 @@ function svgEl(name, attrs = {}) {
   const node = document.createElementNS(NS, name);
   for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
   return node;
+}
+
+/** 點是否落在多邊形內（射線法；用於判斷「容器型」堂區） */
+function pointInRing(pt, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if (((yi > pt.y) !== (yj > pt.y)) && (pt.x < ((xj - xi) * (pt.y - yi)) / (yj - yi || 1e-12) + xi)) {
+      inside = !inside;
+    }
+  }
+  return inside;
 }
 
 function ringArea(ring) {
@@ -100,24 +112,31 @@ function boundsOf(groups) {
   return { x0, y0, x1, y1 };
 }
 
-/** 地理資料只抓一次；prepare 後的結果（世界座標）供所有地圖實例共用 */
-let geoPromise = null;
+/** 地理資料分批載入：先粗後細，澳門細節等縮放進去才抓（同學建議：一次抓全部會卡） */
+const GEO_COARSE_URL = '/data/world-coarse.json';   // 約 31 KB：全球輪廓，先畫這個
+const GEO_LOW_URL = '/data/world-low.json';         // 約 113 KB：國界細節，背景補上
+const GEO_MACAU_URL = '/data/macau.json';           // 約 88 KB：堂區＋珠三角，縮放到澳門才抓
 
-function loadGeo() {
-  if (!geoPromise) {
-    geoPromise = fetch(GEO_URL, { credentials: 'same-origin' })
+const geoCache = new Map();
+
+function fetchGeo(url) {
+  if (!geoCache.has(url)) {
+    geoCache.set(url, fetch(url, { credentials: 'same-origin' })
       .then((res) => {
         if (!res.ok) throw new Error(`地理資料回應 ${res.status}`);
         return res.json();
       })
-      .then(prepareGeo)
       .catch((err) => {
-        geoPromise = null;   // 允許之後重新嘗試（例如暫時離線）
+        geoCache.delete(url);   // 允許之後重新嘗試（例如暫時離線）
         throw err;
-      });
+      }));
   }
-  return geoPromise;
+  return geoCache.get(url);
 }
+
+const loadCoarse = () => fetchGeo(GEO_COARSE_URL).then((raw) => prepareGeo({ world: raw.countries, parishes: [], prd: [] }));
+const loadDetail = () => fetchGeo(GEO_LOW_URL).then((raw) => prepareGeo({ world: raw.countries, parishes: [], prd: [] }));
+const loadMacau = () => fetchGeo(GEO_MACAU_URL).then((raw) => prepareGeo({ world: [], parishes: raw.parishes, prd: raw.prd }));
 
 function prepareGeo(raw) {
   const toLocal = (ring) => ring.map(([lon, lat]) => {
@@ -135,7 +154,7 @@ function prepareGeo(raw) {
     }
     const center = main ? ringCentroid(main) : { x: 0, y: 0, area: 0 };
     return { n: c.n, rings, center, area: center.area || 0 };
-  }).filter((c) => c.rings.length);
+  }).filter((c) => c.rings.length && !/南極|南极|Antarctica/i.test(c.n));
 
   const parishes = (raw.parishes || []).map((p) => {
     const rings = [...(p.o || []), ...(p.i || [])].map(toLocal).filter((r) => r.length >= 3);
@@ -146,8 +165,17 @@ function prepareGeo(raw) {
       if (a > best) { best = a; main = r; }
     }
     const center = main ? ringCentroid(main) : { x: 0, y: 0 };
-    return { n: p.n, rings, center, area: center.area || 0 };
+    return { n: p.n, rings, mainRing: main, center, area: center.area || 0 };
   }).filter((p) => p.rings.length);
+
+  // 資料裡「大堂區」的多邊形其實涵蓋整個澳門半島（其他 4 個半島堂區都在它裡面），
+  // 直接填色會把小花王堂／望德堂／風順堂蓋掉。標成 region：只描邊、不填色。
+  for (const p of parishes) {
+    if (!p.mainRing) { p.region = false; continue; }
+    const inside = parishes.filter((q) => q !== p && q.center
+      && pointInRing(q.center, p.mainRing)).length;
+    p.region = inside >= 2;
+  }
 
   const prd = (raw.prd || []).map(toLocal).filter((r) => r.length >= 3);
 
@@ -155,8 +183,8 @@ function prepareGeo(raw) {
     countries,
     parishes,
     prd,
-    worldBox: boundsOf(countries.map((c) => c.rings)),
-    macauBox: boundsOf(parishes.map((p) => p.rings)),
+    worldBox: countries.length ? boundsOf(countries.map((c) => c.rings)) : null,
+    macauBox: parishes.length ? boundsOf(parishes.map((p) => p.rings)) : null,
   };
 }
 
@@ -223,8 +251,11 @@ export function createWorldMap(container, options = {}) {
   const prdG = svgEl('g', { class: 'wm-prd-layer' });
   const parishG = svgEl('g', { class: 'wm-parishes' });
   const labelG = svgEl('g', { class: 'wm-labels' });
+  const pinG = svgEl('g', { class: 'wm-pins' });
   const treeG = svgEl('g', { class: 'wm-trees' });
-  space.append(worldG, prdG, parishG, treeG, labelG);
+  space.append(worldG, prdG, parishG, treeG, labelG, pinG);
+  let pinEl = null;
+  let pinPos = null;
   svg.appendChild(space);
   container.appendChild(svg);
 
@@ -358,12 +389,20 @@ export function createWorldMap(container, options = {}) {
       }));
     }
 
-    for (const p of geo.parishes) {
-      parishG.appendChild(svgEl('path', {
+    // 先畫「容器型」堂區（只描邊），再畫其他堂區並給不同色階，
+    // 這樣半島上的 5 個堂區才看得出界線（同一個綠色時會糊成一塊）。
+    const palette = ['#2E9E7E', '#3FA88B', '#57B79B', '#6FC4AC', '#4E9B86', '#2F8F79', '#7BCBB5', '#5CA894'];
+    const ordered = [...geo.parishes].sort((a, b) => (a.region === b.region
+      ? Math.abs(b.area) - Math.abs(a.area)
+      : (a.region ? -1 : 1)));
+    ordered.forEach((p, i) => {
+      const path = svgEl('path', {
         d: toPath(p.rings, 9),
-        class: 'wm-parish',
+        class: p.region ? 'wm-parish wm-parish--region' : 'wm-parish',
         'fill-rule': 'evenodd',
-      }));
+      });
+      if (!p.region) path.setAttribute('fill', palette[i % palette.length]);
+      parishG.appendChild(path);
       const label = svgEl('text', {
         class: 'wm-parish-label',
         x: p.center.x.toFixed(9),
@@ -373,7 +412,22 @@ export function createWorldMap(container, options = {}) {
       label.textContent = p.n;
       labelG.appendChild(label);
       parishLabels.push({ el: label, area: p.area });
-    }
+    });
+
+    // 低倍率時的「澳門」定位點：世界地圖一開始看不到 658 個樹點，
+    // 沒有這個標記使用者會以為地圖「沒載入」。點一下直接放大到澳門。
+    pinG.replaceChildren();
+    pinPos = project(113.5540, 22.1630);
+    pinEl = svgEl('g', { class: 'wm-pin', role: 'button', 'aria-label': '放大到澳門' });
+    pinEl.append(
+      svgEl('circle', { class: 'wm-pin-halo', r: 16, cx: 0, cy: 0 }),
+      svgEl('circle', { class: 'wm-pin-dot', r: 4, cx: 0, cy: 0 }),
+    );
+    const pinText = svgEl('text', { class: 'wm-pin-label', x: 22, y: 5 });
+    pinText.textContent = '澳門 Macau';
+    pinEl.append(pinText);
+    pinEl.addEventListener('click', (ev) => { ev.stopPropagation(); focusMacau(); });
+    pinG.appendChild(pinEl);
   }
 
   function buildTreeEls() {
@@ -424,7 +478,17 @@ export function createWorldMap(container, options = {}) {
     // 不能直接把 r 寫成 4/s：在高倍率下 r 會小到 1e-7，Chrome 會把幾何算成 0
     //（實測 z≈15.6 時所有圓點都消失），改成本地半徑固定、只縮 transform 才穩定。
     const inv = (1 / s).toFixed(12);
+    // 只畫視窗內的樹點：658 個全部塞進 DOM 在手機上會拖慢拖曳／縮放
+    const pad = 28 / s;
+    const halfW = (W / 2) / s + pad;
+    const halfH = (H / 2) / s + pad;
     for (const item of treeEls) {
+      const visible = Math.abs(item.x - view.x) <= halfW && Math.abs(item.y - view.y) <= halfH;
+      if (!visible) {
+        if (item.el.style.display !== 'none') item.el.style.display = 'none';
+        continue;
+      }
+      if (item.el.style.display === 'none') item.el.style.display = '';
       const px = item.no === focusedNo ? basePx + 2 : basePx;
       item.el.setAttribute('r', String(px));
       item.el.setAttribute('transform',
@@ -458,6 +522,9 @@ export function createWorldMap(container, options = {}) {
     if (dead || !geo) return;
     if (!W || !H) measure();
     const s = scale();
+    // 進入澳門範圍才抓堂區資料（分批載入的第 2 段）；首屏 fitBox 完成後才判斷，
+    // 否則初始 z 還沒校正就會提早抓 88 KB。
+    if (viewReady && view.z >= 7) ensureMacau();
     space.setAttribute('transform',
       `translate(${W / 2} ${H / 2}) scale(${s}) translate(${-view.x} ${-view.y})`);
 
@@ -465,6 +532,15 @@ export function createWorldMap(container, options = {}) {
     prdG.style.display = view.z >= 5.4 && view.z <= 12.5 ? '' : 'none';
     parishG.style.display = view.z >= PARISH_MIN_Z ? '' : 'none';
     treeG.style.display = view.z >= TREES_MIN_Z ? '' : 'none';
+    if (pinEl && pinPos) {
+      // 世界／洲際／東亞倍率顯示澳門定位點；進入澳門後就交給堂區與樹點
+      const showPin = view.z < PARISH_MIN_Z;
+      pinG.style.display = showPin ? '' : 'none';
+      if (showPin) {
+        pinEl.setAttribute('transform',
+          `translate(${pinPos.x.toFixed(9)} ${pinPos.y.toFixed(9)}) scale(${(1 / s).toFixed(12)})`);
+      }
+    }
 
     updateRadii();
     updateLabels();
@@ -619,7 +695,7 @@ export function createWorldMap(container, options = {}) {
       if (dead) return;
       measure();
       if (!geo) return;
-      if (!viewReady) focusMacau();
+      if (!viewReady) reset();
       else paint();
     })
     : null;
@@ -628,12 +704,17 @@ export function createWorldMap(container, options = {}) {
   // ── 對外 API ────────────────────────────────────────────
   function focusMacau() {
     if (!geo) return;
-    fitBox(geo.macauBox, 34);
+    if (geo.macauBox) { fitBox(geo.macauBox, 34); return; }
+    // 澳門細節還沒抓下來：先給一個已知的澳門視窗，等資料到齊再校正
+    const c = project(113.5540, 22.1630);
+    view.x = c.x; view.y = c.y; view.z = 11.6;
+    clampView();
+    paint();
   }
 
   function reset() {
     if (!geo) return;
-    fitBox(geo.worldBox, 22);
+    if (geo.worldBox) fitBox(geo.worldBox, 22);
   }
 
   function focusTree(no) {
@@ -671,14 +752,56 @@ export function createWorldMap(container, options = {}) {
   measure();
   paint();   // 先畫空圖層，至少讓容器有正確尺寸
 
-  loadGeo()
+  let macauLoading = false;
+  let detailLoaded = false;
+
+  /** 縮放到需要堂區時才抓澳門資料（約 88 KB），抓到後只重建一次圖層 */
+  function ensureMacau() {
+    if (macauLoading || !geo || geo.parishes.length) return;
+    macauLoading = true;
+    loadMacau()
+      .then((part) => {
+        if (dead || !part.parishes.length) return;
+        geo.parishes = part.parishes;
+        geo.prd = part.prd;
+        geo.macauBox = part.macauBox;
+        buildLayers();
+        // 使用者在資料到齊前就按了「定位澳門」的話，這裡要用真實邊界重新對位一次
+        if (view.z >= 7) fitBox(geo.macauBox, 34);
+        else paint();
+      })
+      .catch(() => { /* 抓不到就維持世界視圖，不影響主站其他功能 */ })
+      .finally(() => { macauLoading = false; });
+  }
+
+  /** 背景把國界換成細版；使用者不會看到空白，只是輪廓變細緻 */
+  function upgradeWorld() {
+    if (detailLoaded) return;
+    detailLoaded = true;
+    loadDetail()
+      .then((part) => {
+        if (dead || !part.countries.length) return;
+        geo.countries = part.countries;
+        geo.worldBox = part.worldBox;
+        buildLayers();
+        paint();
+      })
+      .catch(() => { detailLoaded = false; });
+  }
+
+  loadCoarse()
     .then((data) => {
       if (dead) return;
       geo = data;
       buildLayers();
       buildTreeEls();
-      focusMacau();
+      // 預設停在「世界」視圖：一眼看得出是地圖，並有「澳門 Macau」定位點可點。
+      // 需要直接看樹時，map.js 會用 ?tree= 呼叫 focusTree()。
+      reset();
       if (!geo.countries.length) status.textContent = '地理資料為空';
+      // 首屏畫完才補細節，避免一次抓 200 KB 造成卡頓
+      const idle = window.requestIdleCallback || ((fn) => setTimeout(fn, 400));
+      idle(() => { if (!dead) upgradeWorld(); }, { timeout: 2500 });
     })
     .catch((err) => {
       if (dead) return;
