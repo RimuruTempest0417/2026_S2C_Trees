@@ -75,14 +75,19 @@ test('ArcGIS 圖磚網域必須列在 CSP img-src，否則世界地圖會空白'
     .find((x) => x.key === 'Content-Security-Policy').value;
   const imgSrc = csp.split(';').map((s) => s.trim()).find((s) => s.startsWith('img-src'));
   assert.ok(imgSrc, 'vercel.json 找不到 img-src');
-  assert.ok(imgSrc.includes('https://server.arcgisonline.com'), 'img-src 少了 server.arcgisonline.com');
+  // 用「逐字比對來源清單」而不是子字串包含，避免 CodeQL 的 URL 子字串規則誤判
+  const imgHosts = new Set(imgSrc.split(/\s+/).filter(Boolean));
+  assert.ok(imgHosts.has('https://server.arcgisonline.com'), 'img-src 少了 server.arcgisonline.com');
   // script-src 仍必須嚴格：不能為了合併放寬 inline script
   assert.ok(csp.includes("script-src 'self'"), 'script-src 必須是 self');
   assert.ok(!csp.includes("script-src 'self' 'unsafe-inline'"), 'script-src 不可以放寬 unsafe-inline');
 });
 
 test('657 張照片都在，且主站有入口連到 /partner/', () => {
-  const photos = readdirSync(`${PARTNER}/相片`).filter((f) => f.endsWith('.jpg'));
+  // 只計標準檔名（純數字.jpg）。macOS 在 iCloud 同步的資料夾會產生「xxx 2.jpg」衝突副本，
+  // 那些不是專案內容（也不會進版控），不應讓測試失敗。
+  const all = readdirSync(`${PARTNER}/相片`);
+  const photos = all.filter((f) => /^\d+\.jpg$/.test(f));
   assert.equal(photos.length, 657, `照片數量應為 657，實際 ${photos.length}`);
   assert.ok(shell.includes('href="/partner/"'), '主站導覽列沒有連到 /partner/ 的入口');
 });
