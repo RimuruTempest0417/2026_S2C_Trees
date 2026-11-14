@@ -12,9 +12,11 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { readFileSync } from 'node:fs';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url))) + path.sep;
 const print = readFileSync(`${ROOT}public/css/print.css`, 'utf8');
 const check = readFileSync(`${ROOT}scripts/cdp-check.mjs`, 'utf8');
 

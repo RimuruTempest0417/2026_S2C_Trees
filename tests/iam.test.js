@@ -11,10 +11,12 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url))) + path.sep;
 const read = (p) => JSON.parse(readFileSync(ROOT + p, 'utf8'));
 
 const iam = read('data/iam_trees.json');

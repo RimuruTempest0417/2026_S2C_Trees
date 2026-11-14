@@ -9,10 +9,12 @@
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 import { readFileSync } from 'node:fs';
 import { normalizeCjkText } from '../public/js/ui.js';
 
-const ROOT = new URL('..', import.meta.url).pathname;
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url))) + path.sep;
 const PAGES = ['map', 'routes', 'analytics', 'priority', 'field', 'chemistry', 'policy', 'knowledge'];
 const CJK_SPACED = /[\u4e00-\u9fff][ \t]+[\u4e00-\u9fff]|[，。、；：）】》][ \t]+[\u4e00-\u9fff]/;
 
