@@ -9,6 +9,22 @@
 
 ---
 
+## 零、動手前先宣告（每次改程式，不是每週）
+
+**規則：每次要動程式碼之前，先在 GitHub 宣告你要改哪些檔案。** 這是為了避免兩個人同時改同一支檔案。
+
+1. **先同步**：`git switch develop && git pull`
+2. **開一個 Draft PR**（或 issue）宣告：
+   - 標題：`WIP: 一句話說要改什麼`
+   - 內文：`會改：public/js/map.js、public/css/style.css`
+   - 開 Draft 的方法：`Create pull request` 按鈕旁邊的小箭頭 → **`Create draft pull request`**
+3. **看到對方已經在改同一支檔案** → 在他的 PR 留言講好順序，**後改的人負責解 conflict**
+4. **推送後** → 在自己的 PR 留一句「已推，請 pull」；準備好就按 **`Ready for review`**（Draft → 正式 PR）
+
+> 收通知的方法：repo 右上 `Watch` → `Custom` → 勾 **`Pull requests`**。
+
+---
+
 ## 一、別人開 PR 要你批准（最常見）
 
 ### 步驟 1：打開 PR
