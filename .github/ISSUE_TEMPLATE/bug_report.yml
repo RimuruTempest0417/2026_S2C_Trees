@@ -1,0 +1,53 @@
+name: 回報問題
+description: 網站壞了、數字不對、畫面跑版
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        回報前請先確認：重新整理後仍然發生嗎？用手機還是電腦？
+  - type: textarea
+    id: what
+    attributes:
+      label: 發生什麼事
+      description: 你看到什麼、預期應該是什麼
+      placeholder: 例如：打開「優先保育」頁，表格整片空白，主控台有紅色錯誤
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: 重現步驟
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: input
+    id: where
+    attributes:
+      label: 在哪一頁
+      description: 分頁名稱或網址（例如 #/priority）
+      placeholder: "#/priority"
+    validations:
+      required: true
+  - type: dropdown
+    id: device
+    attributes:
+      label: 裝置
+      options:
+        - 電腦（Chrome／Edge）
+        - 電腦（Safari）
+        - 手機（iOS Safari）
+        - 手機（Android Chrome）
+    validations:
+      required: true
+  - type: textarea
+    id: extra
+    attributes:
+      label: 截圖或主控台訊息
+      description: 有截圖最好；沒有也可以
+    validations:
+      required: false
