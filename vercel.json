@@ -45,7 +45,7 @@
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "https://old-trees-mylearning.vercel.app"
+          "value": "https://2026s2ctrees.vercel.app"
         }
       ]
     },
@@ -54,7 +54,7 @@
       "headers": [
         {
           "key": "Access-Control-Allow-Origin",
-          "value": "https://old-trees-mylearning.vercel.app"
+          "value": "https://2026s2ctrees.vercel.app"
         }
       ]
     },

@@ -39,6 +39,6 @@ test('P1 的 API 代理 Function 存在（P2 完成前不可移除）', () => {
   assert.ok(existsSync(fnPath), '缺少 functions/api/[[route]].js');
   const src = readFileSync(fnPath, 'utf8');
   assert.ok(src.includes('export async function onRequest'), 'Pages Function 必須匯出 onRequest');
-  assert.ok(src.includes('https://old-trees-mylearning.vercel.app'), '代理需指向目前的 Vercel 站');
+  assert.ok(src.includes('https://2026s2ctrees.vercel.app'), '代理需指向目前的 Vercel 站');
   assert.ok(!src.includes('onerror='), '不得使用 inline 事件屬性');
 });

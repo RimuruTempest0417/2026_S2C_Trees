@@ -127,7 +127,7 @@ test('後端不再用萬用 CORS：程式與設定檔都不得出現 Access-Cont
 });
 
 test('CORS 白名單：放行本站來源、拒絕其他來源、未帶 Origin 不回標頭', async () => {
-  const allowed = 'https://old-trees-mylearning.vercel.app';
+  const allowed = 'https://2026s2ctrees.vercel.app';
 
   const withAllowed = await get(base, '/api/trees?limit=1', { headers: { Origin: allowed } });
   assert.equal(withAllowed.headers.get('access-control-allow-origin'), allowed);

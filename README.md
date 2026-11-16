@@ -8,7 +8,7 @@
 - **原始資料**：`source-data/古樹.csv`（658 筆）、**澳門市政署「澳門自然網」古樹名木專頁（658 筆逐株資料與官方照片）**、《古樹保育研究(1).docx》（需求文件）
 
 [![每日擷取官方古樹名錄](https://github.com/RimuruTempest0417/2026_S2C_Trees/actions/workflows/refresh-official-data.yml/badge.svg)](https://github.com/RimuruTempest0417/2026_S2C_Trees/actions/workflows/refresh-official-data.yml)
-[![線上網站](https://img.shields.io/badge/%E7%B7%9A%E4%B8%8A%E7%B6%B2%E7%AB%99-old--trees--mylearning.vercel.app-2ea44f)](https://old-trees-mylearning.vercel.app)
+[![線上網站](https://img.shields.io/badge/%E7%B7%9A%E4%B8%8A%E7%B6%B2%E7%AB%99-2026s2ctrees.vercel.app-2ea44f)](https://2026s2ctrees.vercel.app)
 
 > 想參與開發？先讀 [CONTRIBUTING.md](./CONTRIBUTING.md)：分支模型、PR 規則、送 PR 前要跑的測試。
 
@@ -574,7 +574,7 @@ bash scripts/ui-audit.sh 3351          # 有問題時離開碼為 1
 
 ### 使用方式
 
-1. **手機安裝**：以 Chrome（Android）或 Safari（iOS）開啟 `https://old-trees-mylearning.vercel.app`，
+1. **手機安裝**：以 Chrome（Android）或 Safari（iOS）開啟 `https://2026s2ctrees.vercel.app`，
    選單選「加到主畫面／安裝應用程式」，之後從主畫面圖示開啟即為獨立視窗（不顯示瀏覽器網址列）。
 2. **離線瀏覽**：第一次連線時，介面（HTML／CSS／16 個前端模組／vendor／圖示，共 59 項）會存到本機。
    之後即使完全斷網，仍可開啟網站、切換分頁、查看上次的統計與清單。

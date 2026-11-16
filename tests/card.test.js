@@ -22,7 +22,7 @@ const { cardModel, cardHtml, fieldFormHtml, routeBookHtml, routeOptionsHtml, sch
 // 二維碼只是模組方塊，網址不會以文字出現在 HTML；因此改為比對「該網址編出來的 SVG 是否原樣內嵌」。
 const { qrSvg } = await import('../public/js/qr.js');
 
-const SITE = 'https://old-trees-mylearning.vercel.app';
+const SITE = 'https://2026s2ctrees.vercel.app';
 const DATE = '2026/9/24 下午10:30:00';
 
 /** 與 /api/tree?no=66 真實回傳同形狀的樣本（值取自正式環境）。 */
