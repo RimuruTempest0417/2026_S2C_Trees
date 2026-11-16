@@ -38,13 +38,6 @@ function markerIcon(tree) {
   });
 }
 
-/** Google 街景連結（不需要 API key；開新分頁，使用者可直接拉小人看街道） */
-function streetViewUrl(t) {
-  const lat = Number(t.lat);
-  const lon = Number(t.lon);
-  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return '';
-  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat.toFixed(6)},${lon.toFixed(6)}`;
-}
 
 function popupHtml(t) {
   const photo = safeUrl(t.tree_photo) || safeUrl(t.species_photo);
@@ -57,7 +50,6 @@ function popupHtml(t) {
       <div class="tiny">${gradeBadge(t.grade)} ${healthBadge(t.health)}</div>
       <div class="tiny" style="margin-top:.35rem">${esc(t.official_loc || t.site || '')}<br>${esc(t.parish || '')}</div>
       <button class="btn btn-sm btn-primary" style="margin-top:.5rem" data-detail="${esc(t.tree_no)}">查看詳情</button>
-      ${streetViewUrl(t) ? `<a class="btn btn-sm" style="margin-top:.5rem" href="${esc(streetViewUrl(t))}" target="_blank" rel="noopener">街景</a>` : ''}
     </div>`;
 }
 
@@ -83,6 +75,7 @@ export async function render(section, params) {
           <button type="button" class="map-mode-btn is-active" data-map-mode="world" aria-pressed="true">世界地圖</button>
           <button type="button" class="map-mode-btn" data-map-mode="flat" aria-pressed="false">平面地圖</button>
         </div>
+        <button type="button" class="btn btn-sm" id="btn-random-tree" title="隨機挑一株古樹，地圖直接飛過去並打開它的資料">🎲 隨機看一棵樹</button>
         <div class="map-stage is-world">
           <div id="map"></div>
           <div id="worldmap" class="worldmap"></div>
@@ -277,6 +270,28 @@ export async function render(section, params) {
   // ── 查詢與繪製 ────────────────────────────────────────
   async function load({ fit = true } = {}) {
     const list = section.querySelector('#tree-list');
+    // 隨機看一棵樹：從目前篩選結果挑一株，地圖飛過去並開詳情
+    section.querySelector('#btn-random-tree')?.addEventListener('click', () => {
+      const pool = (state.shown && state.shown.length) ? state.shown : state.trees;
+      if (!pool || !pool.length) { toast('目前沒有符合條件的古樹'); return; }
+      const t = pool[Math.floor(Math.random() * pool.length)];
+      const no = String(t.tree_no);
+      const item = section.querySelector(`.tree-item[data-tree="${no.replace(/"/g, '')}"]`);
+      if (item) {
+        section.querySelectorAll('.tree-item').forEach((x) => x.classList.toggle('active', x === item));
+        // 只捲動列表自己，不要把整個頁面捲走（捲走後地圖與按鈕就跑到畫面外了）
+        const lc = section.querySelector('#tree-list');
+        if (lc) lc.scrollTop = Math.max(0, item.offsetTop - lc.offsetTop - lc.clientHeight / 2 + item.clientHeight / 2);
+      }
+      if (state.mode === 'world' && state.wm) {
+        state.wm.focusTree(no);
+      } else if (state.markers.has(no)) {
+        const m = state.markers.get(no);
+        map.setView(m.getLatLng(), Math.max(map.getZoom(), 16), { animate: true });
+        openMarker(m);
+      }
+      showDetail(no);
+    });
     list.innerHTML = loading('查詢中…');
     const q = { ...state.filters, limit: 2000 };
     for (const k of Object.keys(q)) if (q[k] === '') delete q[k];
@@ -307,6 +322,7 @@ export async function render(section, params) {
     }
     if (fit && bounds.length) map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
 
+    state.shown = data.trees;
     list.innerHTML = data.trees.length ? data.trees.map((t) => `
       <div class="tree-item" data-tree="${esc(t.tree_no)}" data-lat="${t.lat}" data-lon="${t.lon}">
         ${safeUrl(t.tree_photo) || safeUrl(t.species_photo)
@@ -325,6 +341,7 @@ export async function render(section, params) {
       list.querySelectorAll('.tree-item').forEach((x) => x.classList.toggle('active', x === item));
       if (state.mode === 'world' && state.wm) {
         state.wm.focusTree(no);       // 世界地圖模式：直接縮放定位到這一株
+        showDetail(no);               // 並打開這一株的資料（「看一棵樹」）
         return;
       }
       if (state.markers.has(no)) {
@@ -372,7 +389,7 @@ export async function render(section, params) {
       const stemLabel = (t.stem_count || 1) > 1 ? `（${t.stem_count} 支主幹，取最大胸徑那支）` : '';
       openModal(`
         <h2>${esc(t.species)} <span class="muted small">古樹編號 ${esc(t.tree_no)}</span>
-          ${streetViewUrl(t) ? `<a class="btn btn-sm btn-primary" style="margin-left:.55rem;vertical-align:middle" href="${esc(streetViewUrl(t))}" target="_blank" rel="noopener">街景</a>` : ''}</h2>
+</h2>
         <p class="small muted" style="margin-top:-.4rem">${esc(t.name_sci || '')}${t.geo_precision ? `・座標精度：${esc({ official: '市政署實測座標', exact: '精確匹配', approx: '近似', parish: '堂區中心' }[t.geo_precision] || t.geo_precision)}` : ''}</p>
         ${official ? `<figure style="margin:.5rem 0 .8rem">
           <img src="${esc(safeUrl(official))}" alt="${esc(t.species)}（古樹編號 ${esc(t.tree_no)}）"
@@ -394,8 +411,7 @@ export async function render(section, params) {
             <tr><th>堂區</th><td>${esc(t.parish || '')}</td></tr>
             <tr><th>座標</th><td class="mono tiny">${num(t.lat, 5)}, ${num(t.lon, 5)}
               <a class="btn btn-sm" style="margin-left:.4rem" target="_blank" rel="noopener"
-                 href="https://www.openstreetmap.org/?mlat=${encodeURIComponent(t.lat)}&mlon=${encodeURIComponent(t.lon)}#map=19/${encodeURIComponent(t.lat)}/${encodeURIComponent(t.lon)}">在 OSM 開啟</a>
-              ${streetViewUrl(t) ? `<a class="btn btn-sm" style="margin-left:.3rem" target="_blank" rel="noopener" href="${esc(streetViewUrl(t))}">街景</a>` : ''}</td></tr>
+                 href="https://www.openstreetmap.org/?mlat=${encodeURIComponent(t.lat)}&mlon=${encodeURIComponent(t.lon)}#map=19/${encodeURIComponent(t.lat)}/${encodeURIComponent(t.lon)}">在 OSM 開啟</a></td></tr>
             <tr><th>樹種學名</th><td>${esc(t.name_sci || '—')}</td></tr>
             ${t.crown_m != null ? `<tr><th>冠幅</th><td>${num(t.crown_m, 1)} 公尺</td></tr>` : ''}
             ${t.diameter_cm != null ? `<tr><th>胸徑</th><td>${num(t.diameter_cm, 2)} 公分${stemLabel}</td></tr>` : ''}
@@ -426,7 +442,6 @@ export async function render(section, params) {
           </div>` : ''}
         <div class="row" style="margin-top:.8rem">
           <a class="btn btn-primary btn-sm" id="go-field" href="#/field?tree=${esc(t.tree_no)}">＋ 為這株樹新增實地考察紀錄</a>
-          ${streetViewUrl(t) ? `<a class="btn btn-sm" id="street-view" href="${esc(streetViewUrl(t))}" target="_blank" rel="noopener">街景（Google）</a>` : ''}
           <button class="btn btn-sm" id="show-qr" type="button">顯示二維碼</button>
           <a class="btn btn-sm" id="qr-sheet" href="#/qr?tree=${esc(t.tree_no)}">列印標籤</a>
           <a class="btn btn-sm" id="card-link" href="#/card?tree=${esc(t.tree_no)}">A4 檔案卡</a>

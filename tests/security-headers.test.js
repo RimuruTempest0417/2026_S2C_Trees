@@ -86,7 +86,7 @@ test('CSP 的 img-src 涵蓋前端真的會載入的外部圖片來源', () => {
   for (const h of new Set(externals)) {
     assert.ok(
       img.includes(h) || cspOf().includes(h) || /(^|\.)openstreetmap\.org$/.test(h) || /(^|\.)w3\.org$/.test(h)
-      || h === 'www.google.com',   // 街景只是外部連結（target=_blank），本頁不載入任何 Google 資源
+
       `map.js 出現的外部網域 ${h} 未列入 CSP（若只是連結可加白名單，若是圖片／請求則必須列入）`,
     );
   }
