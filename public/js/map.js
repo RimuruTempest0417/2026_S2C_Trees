@@ -371,7 +371,8 @@ export async function render(section, params) {
       // 多主幹：胸徑／胸圍直接取市政署官方值（不換算），並標示代表值取哪一支
       const stemLabel = (t.stem_count || 1) > 1 ? `（${t.stem_count} 支主幹，取最大胸徑那支）` : '';
       openModal(`
-        <h2>${esc(t.species)} <span class="muted small">古樹編號 ${esc(t.tree_no)}</span></h2>
+        <h2>${esc(t.species)} <span class="muted small">古樹編號 ${esc(t.tree_no)}</span>
+          ${streetViewUrl(t) ? `<a class="btn btn-sm btn-primary" style="margin-left:.55rem;vertical-align:middle" href="${esc(streetViewUrl(t))}" target="_blank" rel="noopener">街景</a>` : ''}</h2>
         <p class="small muted" style="margin-top:-.4rem">${esc(t.name_sci || '')}${t.geo_precision ? `・座標精度：${esc({ official: '市政署實測座標', exact: '精確匹配', approx: '近似', parish: '堂區中心' }[t.geo_precision] || t.geo_precision)}` : ''}</p>
         ${official ? `<figure style="margin:.5rem 0 .8rem">
           <img src="${esc(safeUrl(official))}" alt="${esc(t.species)}（古樹編號 ${esc(t.tree_no)}）"
@@ -393,7 +394,8 @@ export async function render(section, params) {
             <tr><th>堂區</th><td>${esc(t.parish || '')}</td></tr>
             <tr><th>座標</th><td class="mono tiny">${num(t.lat, 5)}, ${num(t.lon, 5)}
               <a class="btn btn-sm" style="margin-left:.4rem" target="_blank" rel="noopener"
-                 href="https://www.openstreetmap.org/?mlat=${encodeURIComponent(t.lat)}&mlon=${encodeURIComponent(t.lon)}#map=19/${encodeURIComponent(t.lat)}/${encodeURIComponent(t.lon)}">在 OSM 開啟</a></td></tr>
+                 href="https://www.openstreetmap.org/?mlat=${encodeURIComponent(t.lat)}&mlon=${encodeURIComponent(t.lon)}#map=19/${encodeURIComponent(t.lat)}/${encodeURIComponent(t.lon)}">在 OSM 開啟</a>
+              ${streetViewUrl(t) ? `<a class="btn btn-sm" style="margin-left:.3rem" target="_blank" rel="noopener" href="${esc(streetViewUrl(t))}">街景</a>` : ''}</td></tr>
             <tr><th>樹種學名</th><td>${esc(t.name_sci || '—')}</td></tr>
             ${t.crown_m != null ? `<tr><th>冠幅</th><td>${num(t.crown_m, 1)} 公尺</td></tr>` : ''}
             ${t.diameter_cm != null ? `<tr><th>胸徑</th><td>${num(t.diameter_cm, 2)} 公分${stemLabel}</td></tr>` : ''}
