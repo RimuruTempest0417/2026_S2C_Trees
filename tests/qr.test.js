@@ -23,7 +23,7 @@ globalThis.qrcode = new Function(`${vendorSrc}; return qrcode;`)();
 
 const { treeUrl, qrMatrix, qrSvg, qrSvgFile, siteBase } = await import('../public/js/qr.js');
 
-const SITE = 'https://old-trees-mylearning.vercel.app/';
+const SITE = 'https://2026s2ctrees.vercel.app/';
 const URL_66 = treeUrl('66', { base: SITE });
 
 test('vendor 程式庫為 qrcode-generator（MIT）且未被我方改寫', () => {
@@ -121,7 +121,7 @@ test('qrSvg：向量輸出、含靜區（quiet zone）、無障礙屬性與說�
 test('qrSvgFile：下載的檔案是完整可用的 SVG 文件', () => {
   const file = qrSvgFile(URL_66, { title: '古樹 66' });
   assert.match(file, /^<\?xml version="1\.0" encoding="UTF-8"\?>/);
-  assert.match(file, /<!-- https:\/\/old-trees-mylearning\.vercel\.app\/#\/map\?tree=66 -->/);
+  assert.match(file, /<!-- https:\/\/2026s2ctrees\.vercel\.app\/#\/map\?tree=66 -->/);
   assert.match(file, /<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"/);
   assert.match(file, /<\/svg>\s*$/);
 });

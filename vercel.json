@@ -31,13 +31,13 @@
     {
       "source": "/",
       "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "https://old-trees-mylearning.vercel.app" }
+        { "key": "Access-Control-Allow-Origin", "value": "https://2026s2ctrees.vercel.app" }
       ]
     },
     {
       "source": "/(.*)\\.(js|css|png|jpg|jpeg|svg|ico|webmanifest)",
       "headers": [
-        { "key": "Access-Control-Allow-Origin", "value": "https://old-trees-mylearning.vercel.app" }
+        { "key": "Access-Control-Allow-Origin", "value": "https://2026s2ctrees.vercel.app" }
       ]
     },
     {

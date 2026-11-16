@@ -6,7 +6,7 @@
  * 這裡用一支最小的 Function 把請求轉給現有的 Vercel API，
  * 讓 P1（靜態站）可以先獨立驗收，等 P2 把各端點移植過來再刪掉這支。
  */
-const UPSTREAM = 'https://old-trees-mylearning.vercel.app';
+const UPSTREAM = 'https://2026s2ctrees.vercel.app';
 
 export async function onRequest(context) {
   const { request } = context;
