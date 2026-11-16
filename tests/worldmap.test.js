@@ -136,6 +136,9 @@ test('worldmap.js 只用 ArcGIS 衛星圖磚這一個外部來源，不引入 CD
 
 test('世界地圖：珠三角倍率起疊衛星影像，抓不到圖磚就退回示意圖，圖磚會定期更新', () => {
   assert.ok(worldmap.includes('TILE_MIN_Z'), '缺少圖磚啟用的倍率');
+  // 縮小到世界倍率也要有影像（不能只在中倍率顯示）
+  assert.match(worldmap, /TILE_MIN_Z = ([0-9.]+);/, '缺少 TILE_MIN_Z 常數');
+  assert.ok(Number(/TILE_MIN_Z = ([0-9.]+);/.exec(worldmap)[1]) <= 2, 'TILE_MIN_Z 太大，縮小到世界會掉回示意圖');
   assert.ok(worldmap.includes('World_Imagery'), '缺少 ArcGIS World_Imagery 圖磚層');
   assert.ok(worldmap.includes('has-tiles'), '缺少「已載入圖磚」狀態（陸地填色要靠它變淡）');
   assert.ok(worldmap.includes("addEventListener('error', onTileError)"), '圖磚失敗必須有退回機制');

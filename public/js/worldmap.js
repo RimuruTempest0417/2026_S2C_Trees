@@ -24,7 +24,7 @@ const PARISH_MIN_Z = 9.6;
 // ── 衛星影像圖磚（連線時疊在示意圖下方；離線／被封鎖就自動退回示意圖）──
 // 只接 ArcGIS World Imagery 這一個來源：專案的 CSP（vercel.json 的 img-src）本來就放行
 // server.arcgisonline.com，和「平面地圖」用的是同一組圖源。
-const TILE_MIN_Z = 8.5;       // 珠三角倍率起才疊；再低倍的衛星圖只有雲和海，示意圖更清楚
+const TILE_MIN_Z = 0.6;       // 全倍率都疊衛星影像（含世界／洲際），縮小不再掉回示意圖
 const TILE_TO_MAX_ZOOM = 17;  // ArcGIS 在澳門一帶可到 17 級
 const TILE_LIMIT = 240;       // 同時存在的圖磚上限，避免長距離拖曳把記憶體吃光
 const TILE_RETRY_MS = 30000;  // 連續失敗後的冷卻時間（離線時不要每幀重試）
