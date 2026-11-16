@@ -1,6 +1,7 @@
 /** 地圖查詢：多條件篩選、叢集標記、半徑搜尋、單株詳情與相片。 */
 import { api, cached } from './api.js';
 import { createWorldMap } from './worldmap.js';
+import { openStreetView } from './streetview.js';
 import {
   esc, num, healthBadge, gradeBadge, safeUrl, loading, openModal, closeModal, toast, downloadCsv, healthColor,
   errDetail, errText,
@@ -50,6 +51,7 @@ function popupHtml(t) {
       <div class="tiny">${gradeBadge(t.grade)} ${healthBadge(t.health)}</div>
       <div class="tiny" style="margin-top:.35rem">${esc(t.official_loc || t.site || '')}<br>${esc(t.parish || '')}</div>
       <button class="btn btn-sm btn-primary" style="margin-top:.5rem" data-detail="${esc(t.tree_no)}">查看詳情</button>
+      <span style="margin-left:.3rem"><button type="button" class="btn btn-sm" data-act="streetview" data-lat="${t.lat}" data-lon="${t.lon}" data-label="${esc(t.species)}">街景</button></span>
     </div>`;
 }
 
@@ -81,7 +83,7 @@ export async function render(section, params) {
           <div id="worldmap" class="worldmap"></div>
         </div>
         <div class="row" style="margin-top:.5rem">
-          <span class="tiny muted">底圖 © OpenStreetMap 貢獻者。古樹座標、冠幅、胸徑、描述與照片為市政署「澳門自然網」公開資料；實地請以現場標牌為準。</span>
+          <span class="tiny muted">底圖 © OpenStreetMap 貢獻者；街景嵌入使用 Google 地圖（影像 © Google）。古樹座標、冠幅、胸徑、描述與照片為市政署「澳門自然網」公開資料；實地請以現場標牌為準。</span>
           <span class="spacer"></span>
           <button class="btn btn-sm" id="btn-csv">匯出目前結果 CSV</button>
         </div>
@@ -266,6 +268,13 @@ export async function render(section, params) {
     btn.addEventListener('click', () => showMode(btn.dataset.mapMode));
   }
   showMode('world');
+  // 頁面內街景：詳情彈窗、座標列、地圖 popup 的「街景」按鈕共用同一個入口（只註冊一次）
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-act="streetview"]');
+    if (!b) return;
+    e.preventDefault();
+    openStreetView({ lat: Number(b.dataset.lat), lon: Number(b.dataset.lon), label: b.dataset.label || '' });
+  });
 
   // ── 查詢與繪製 ────────────────────────────────────────
   async function load({ fit = true } = {}) {
@@ -389,7 +398,7 @@ export async function render(section, params) {
       const stemLabel = (t.stem_count || 1) > 1 ? `（${t.stem_count} 支主幹，取最大胸徑那支）` : '';
       openModal(`
         <h2>${esc(t.species)} <span class="muted small">古樹編號 ${esc(t.tree_no)}</span>
-</h2>
+          <span style="margin-left:.55rem;vertical-align:middle"><button type="button" class="btn btn-sm btn-primary" data-act="streetview" data-lat="${t.lat}" data-lon="${t.lon}" data-label="${esc(t.species)}">街景</button></span></h2>
         <p class="small muted" style="margin-top:-.4rem">${esc(t.name_sci || '')}${t.geo_precision ? `・座標精度：${esc({ official: '市政署實測座標', exact: '精確匹配', approx: '近似', parish: '堂區中心' }[t.geo_precision] || t.geo_precision)}` : ''}</p>
         ${official ? `<figure style="margin:.5rem 0 .8rem">
           <img src="${esc(safeUrl(official))}" alt="${esc(t.species)}（古樹編號 ${esc(t.tree_no)}）"
@@ -411,7 +420,8 @@ export async function render(section, params) {
             <tr><th>堂區</th><td>${esc(t.parish || '')}</td></tr>
             <tr><th>座標</th><td class="mono tiny">${num(t.lat, 5)}, ${num(t.lon, 5)}
               <a class="btn btn-sm" style="margin-left:.4rem" target="_blank" rel="noopener"
-                 href="https://www.openstreetmap.org/?mlat=${encodeURIComponent(t.lat)}&mlon=${encodeURIComponent(t.lon)}#map=19/${encodeURIComponent(t.lat)}/${encodeURIComponent(t.lon)}">在 OSM 開啟</a></td></tr>
+                 href="https://www.openstreetmap.org/?mlat=${encodeURIComponent(t.lat)}&mlon=${encodeURIComponent(t.lon)}#map=19/${encodeURIComponent(t.lat)}/${encodeURIComponent(t.lon)}">在 OSM 開啟</a>
+              <span style="margin-left:.3rem"><button type="button" class="btn btn-sm" data-act="streetview" data-lat="${t.lat}" data-lon="${t.lon}" data-label="${esc(t.species)}">街景</button></span></td></tr>
             <tr><th>樹種學名</th><td>${esc(t.name_sci || '—')}</td></tr>
             ${t.crown_m != null ? `<tr><th>冠幅</th><td>${num(t.crown_m, 1)} 公尺</td></tr>` : ''}
             ${t.diameter_cm != null ? `<tr><th>胸徑</th><td>${num(t.diameter_cm, 2)} 公分${stemLabel}</td></tr>` : ''}
