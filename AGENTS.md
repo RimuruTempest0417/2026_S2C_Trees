@@ -8,7 +8,7 @@
 
 ## 開工前必讀
 
-1. 分支模型：`main`（發佈）← `develop`（整合）← `gary/*`、`miao/*`（個人分支）。**不要直接推 `main` 或 `develop`。**
+1. 分支模型：`main`（發佈）← `develop`（整合）← `gary/*`、`miao/*`（個人分支）。**開發推 `develop`；`main` 只在檢查全過後由 owner 合併。**
 2. 資料是官方資料（澳門市政署）：分級、胸徑、胸圍、樹齡、健康一律用 `official_*` 欄位，**不得換算、估算或自行分級**。
 3. 金鑰不進版控：`.env`、`.env.local`、任何權杖、`*ZAP-Report*.html` 一律不得 commit。
 

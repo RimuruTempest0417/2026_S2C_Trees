@@ -7,7 +7,7 @@
 
 1. **官方資料不得改**：分級、胸徑、胸圍、樹齡、健康一律採用市政署公布值（`official_*`），不得換算、估算或自行分級。
 2. **金鑰不進版控**：`.env`、任何金鑰、`*ZAP-Report*.html` 一律不得 commit。
-3. **`main` 只放發佈版**：所有人都從 `develop` 開分支，經 PR 合併。
+3. **`main` 只放發佈版**：日常開發推 `develop`；`develop` 通過檢查後才合併到 `main`。
 
 ## 2. 本機環境
 
@@ -24,11 +24,21 @@ npm run dev            # http://127.0.0.1:3000
 
 | 分支 | 用途 | 誰可以推 |
 |---|---|---|
-| `main` | 對外發佈版（Vercel production） | 只有 repo owner，經 PR 合併 |
+| `main` | 對外發佈版（Vercel production） | 只有 repo owner；**`develop` 檢查通過後**才合併 |
 | `develop` | 日常開發整合 | 經 PR 合併 |
 | `gary/*`、`miao/*` | 個人工作分支 | 自己 |
 
-`gary/xxx` 或 `miao/xxx` → PR → `develop` →（驗收後）PR → `main` → 發 Release。
+`gary/xxx` 或 `miao/xxx` → `develop` →（檢查通過）→ `main` → 發 Release。
+
+### 每次開發的流程（2026-11-16 起）
+
+1. 在自己的分支或 `develop` 上完成改動
+2. 推上 **`develop`**
+3. 在 `develop` 跑完三項檢查（見第 7 節），全過才繼續
+4. 由 repo owner 把 `develop` 合併到 `main`（merge commit），Vercel 自動部署
+5. 需要時發 Release 與 tag
+
+> 目的：`main` 永遠是可對外展示的版本；`develop` 可以有進行中的改動。
 
 ### 每個人的工作分支
 
@@ -117,7 +127,7 @@ node scripts/build-sw.mjs --check   # PWA 預載清單要與版本一致
 
 ## 8. 不要做的事
 
-- 不要直接推 `main`，也不要在 `develop` 上直接改（除了 1 行錯字）
+- 不要直接推 `main`（`main` 只接受從 `develop` 合併、且檢查已通過的版本）
 - 不要 commit `.env`、金鑰、`node_modules/`、`*ZAP-Report*.html`
 - 不要引入 CDN 依賴：第三方函式庫一律放 `public/vendor/`（離線 PWA 需要）
 - 不要改官方數值或自創分級；發現官方資料變動請開 issue
