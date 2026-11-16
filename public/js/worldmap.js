@@ -29,6 +29,9 @@ const TILE_TO_MAX_ZOOM = 17;  // ArcGIS 在澳門一帶可到 17 級
 const TILE_LIMIT = 240;       // 同時存在的圖磚上限，避免長距離拖曳把記憶體吃光
 const TILE_RETRY_MS = 30000;  // 連續失敗後的冷卻時間（離線時不要每幀重試）
 const TILE_URL = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+// 地名／邊界參考層：衛星影像本身沒有地名，疊這一層才有國名、城市名、街道名
+const TILE_LABEL_URL = (z, x, y) => `https://server.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/${z}/${y}/${x}`;
+const TREE_ZOOM_ON_SELECT = 15.2;   // 點一棵樹就拉到這個倍率（看得到樹冠與周邊街道）
 /** 澳門中心（議事亭前地一帶），作為區域座標原點 */
 const ORIGIN = merc(113.5540, 22.1630);
 
@@ -256,13 +259,14 @@ export function createWorldMap(container, options = {}) {
   });
   const space = svgEl('g', { class: 'wm-space' });
   const tileG = svgEl('g', { class: 'wm-tiles' });
+  const tileLabelG = svgEl('g', { class: 'wm-tile-labels' });
   const worldG = svgEl('g', { class: 'wm-world' });
   const prdG = svgEl('g', { class: 'wm-prd-layer' });
   const parishG = svgEl('g', { class: 'wm-parishes' });
   const labelG = svgEl('g', { class: 'wm-labels' });
   const pinG = svgEl('g', { class: 'wm-pins' });
   const treeG = svgEl('g', { class: 'wm-trees' });
-  space.append(tileG, worldG, prdG, parishG, treeG, labelG, pinG);
+  space.append(tileG, tileLabelG, worldG, prdG, parishG, treeG, labelG, pinG);
   let pinEl = null;
   let pinPos = null;
   svg.appendChild(space);
@@ -465,7 +469,7 @@ export function createWorldMap(container, options = {}) {
         class: `wm-tree ${healthClass(t.health)}`,
         cx: '0',
         cy: '0',
-        r: '4',
+        r: '5',
         'data-wm-tree': no,
       });
       const title = document.createElementNS(NS, 'title');
@@ -594,6 +598,7 @@ export function createWorldMap(container, options = {}) {
         if (ty < 0 || ty >= n) continue;
         const key = `${tz}/${tx}/${ty}`;
         keep.add(key);
+        keep.add(`${key}|L`);   // 地名圖磚也要保留，否則建立後立刻被清掉
         if (tileEls.has(key)) continue;
         const url = TILE_URL(tz, tx, ty);
         const img = svgEl('image', {
@@ -610,6 +615,22 @@ export function createWorldMap(container, options = {}) {
         img.addEventListener('error', onTileError);
         tileG.appendChild(img);
         tileEls.set(key, img);
+        // 同一格再疊一張地名（透明底），世界倍率才看得到國名／城市名
+        const lblUrl = TILE_LABEL_URL(tz, tx, ty);
+        const lbl = svgEl('image', {
+          class: 'wm-tile wm-tile-label',
+          x: (tx / n - ORIGIN.x).toFixed(9),
+          y: (ty / n - ORIGIN.y).toFixed(9),
+          width: (1 / n).toFixed(9),
+          height: (1 / n).toFixed(9),
+          preserveAspectRatio: 'none',
+          href: lblUrl,
+        });
+        lbl.setAttributeNS('http://www.w3.org/1999/xlink', 'xlink:href', lblUrl);
+        lbl.addEventListener('load', onTileLoad);
+        lbl.addEventListener('error', () => {});   // 地名層缺圖不影響影像
+        tileLabelG.appendChild(lbl);
+        tileEls.set(`${key}|L`, lbl);
       }
     }
     for (const [key, el] of tileEls) {
@@ -754,6 +775,15 @@ export function createWorldMap(container, options = {}) {
     radiusDirty = true;
     // 把選取的點移到最上層，避免被鄰近的點蓋住
     treeG.appendChild(node);
+    // 點一棵樹就拉近到單株，看得到樹的位置與周邊街道
+    const hit = treeByNo.get(no);
+    if (hit && view.z < TREE_ZOOM_ON_SELECT) {
+      view.x = hit.x;
+      view.y = hit.y;
+      view.z = TREE_ZOOM_ON_SELECT;
+      clampView();
+    }
+    radiusDirty = true;
     paint();
     if (onSelect) onSelect(no);
   }

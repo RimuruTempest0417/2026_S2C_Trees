@@ -123,7 +123,8 @@ test('worldmap.js 只用 ArcGIS 衛星圖磚這一個外部來源，不引入 CD
   // 規則放寬（2026-11）：為了讓世界地圖在珠三角倍率疊衛星影像，允許唯一的圖磚來源
   // ArcGIS World_Imagery（CSP 的 img-src 早已放行，和平面地圖用同一組圖源）。
   // 其他任何外部網址仍然不允許。
-  const TILE_PREFIX = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/';
+  // 兩個服務：World_Imagery（衛星影像）＋ Reference/World_Boundaries_and_Places（地名）
+  const TILE_PREFIX = 'https://server.arcgisonline.com/ArcGIS/rest/services/';
   // SVG／xlink 的命名空間是識別字，不是網路資源
   const ALLOWED = [TILE_PREFIX, 'http://www.w3.org/2000/svg', 'http://www.w3.org/1999/xlink'];
   const externals = [...worldmap.matchAll(/https?:\/\/[^\s'`")\\]+/g)].map((m) => m[0]);

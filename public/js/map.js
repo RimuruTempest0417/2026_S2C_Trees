@@ -38,6 +38,14 @@ function markerIcon(tree) {
   });
 }
 
+/** Google 街景連結（不需要 API key；開新分頁，使用者可直接拉小人看街道） */
+function streetViewUrl(t) {
+  const lat = Number(t.lat);
+  const lon = Number(t.lon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) return '';
+  return `https://www.google.com/maps/@?api=1&map_action=pano&viewpoint=${lat.toFixed(6)},${lon.toFixed(6)}`;
+}
+
 function popupHtml(t) {
   const photo = safeUrl(t.tree_photo) || safeUrl(t.species_photo);
   return `
@@ -49,6 +57,7 @@ function popupHtml(t) {
       <div class="tiny">${gradeBadge(t.grade)} ${healthBadge(t.health)}</div>
       <div class="tiny" style="margin-top:.35rem">${esc(t.official_loc || t.site || '')}<br>${esc(t.parish || '')}</div>
       <button class="btn btn-sm btn-primary" style="margin-top:.5rem" data-detail="${esc(t.tree_no)}">查看詳情</button>
+      ${streetViewUrl(t) ? `<a class="btn btn-sm" style="margin-top:.5rem" href="${esc(streetViewUrl(t))}" target="_blank" rel="noopener">街景</a>` : ''}
     </div>`;
 }
 
@@ -415,6 +424,7 @@ export async function render(section, params) {
           </div>` : ''}
         <div class="row" style="margin-top:.8rem">
           <a class="btn btn-primary btn-sm" id="go-field" href="#/field?tree=${esc(t.tree_no)}">＋ 為這株樹新增實地考察紀錄</a>
+          ${streetViewUrl(t) ? `<a class="btn btn-sm" id="street-view" href="${esc(streetViewUrl(t))}" target="_blank" rel="noopener">街景（Google）</a>` : ''}
           <button class="btn btn-sm" id="show-qr" type="button">顯示二維碼</button>
           <a class="btn btn-sm" id="qr-sheet" href="#/qr?tree=${esc(t.tree_no)}">列印標籤</a>
           <a class="btn btn-sm" id="card-link" href="#/card?tree=${esc(t.tree_no)}">A4 檔案卡</a>
