@@ -195,6 +195,9 @@ test('平面地圖提供街道圖／衛星影像底圖切換（沿用 CSP 已放
   const vercelJson = readFileSync(`${ROOT}vercel.json`, 'utf8');
   assert.ok(vercelJson.includes('server.arcgisonline.com'), 'CSP 的 img-src 必須放行 arcgisonline');
   assert.ok(vercelJson.includes('tile.openstreetmap.org'), 'CSP 的 img-src 必須放行 openstreetmap');
+  // Service Worker 快取圖磚時走 fetch → 受 connect-src 管制；只放 img-src 會被擋成空白
+  assert.ok(/connect-src[^;]*server\.arcgisonline\.com/.test(vercelJson), 'CSP 的 connect-src 必須放行 arcgisonline 圖磚');
+  assert.ok(/connect-src[^;]*tile\.openstreetmap\.org/.test(vercelJson), 'CSP 的 connect-src 必須放行 openstreetmap 圖磚');
 });
 
 // 迴歸：v1.2.0 的 .wm-prd 是 fill: none，而國家填色在 z≥8.4 就被收掉，
