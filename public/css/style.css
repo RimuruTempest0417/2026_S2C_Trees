@@ -487,7 +487,10 @@ table.table th + th, table.table td + td { border-left: 1px solid color-mix(in s
 
 /* 衛星影像圖磚：連線時鋪在示意圖底下；抓不到圖磚就恢復原本的陸地填色 */
 .wm-tile { pointer-events: none; }
-.worldmap.has-tiles .wm-country { fill-opacity: .16; }
+/* 有衛星影像時，國家／堂區只留輪廓、不填色——
+   填色會變成一層綠色塗層蓋在衛星影像上（使用者反映「綠色塗層」） */
+.worldmap.has-tiles .wm-country { fill-opacity: 0; stroke-opacity: .45; }
+.worldmap.has-tiles .wm-parish { fill-opacity: .05; }
 /* prd 是粗輪廓的陸地多邊形（含河口），有衛星影像時不要再用它上色，否則海面會出現一塊綠 */
 .worldmap.has-tiles .wm-prd { fill-opacity: 0; }
 .wm-attrib {
