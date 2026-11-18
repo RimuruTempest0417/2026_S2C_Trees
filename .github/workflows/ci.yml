@@ -1,0 +1,48 @@
+name: 測試與語法檢查
+
+# 為什麼要有這個 workflow：
+#   以前只有 Vercel 會在建置時「順便」編譯，PR 就算測試檔壞掉也照樣可以合併
+#   （v1.2.0 就發生過）。這裡在 push 與 PR 時把三項檢查跑完：
+#     1. node --check 全部 JS
+#     2. node:test 單元測試
+#     3. Service Worker 預載清單與版本是否同步
+#   純讀取，不需要任何權限寫入。
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: 取出原始碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 安裝相依套件
+        run: npm ci --no-audit --no-fund
+
+      - name: 語法檢查（node --check）
+        run: npm run check
+
+      - name: 單元測試
+        run: npm test
+
+      - name: Service Worker 預載清單
+        run: node scripts/build-sw.mjs --check

@@ -13,6 +13,8 @@ on:
   schedule:
     # 每天 20:20 UTC = 隔天 04:20（澳門時間 UTC+8），離峰時段
     - cron: '20 20 * * *'
+    # 備援時段：16:20（澳門）。市政署偶爾回 504，早上那次失敗時下午還會再試一次
+    - cron: '20 8 * * *'
   workflow_dispatch: {}   # 也可以在 GitHub 上按「Run workflow」手動觸發
 
 permissions:
@@ -26,6 +28,7 @@ concurrency:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: 取出原始碼
         uses: actions/checkout@v4

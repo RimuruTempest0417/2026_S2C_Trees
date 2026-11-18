@@ -55,32 +55,57 @@ def measures(diam, girth):
     return ds[i], gs[i], n, note
 
 
-def get(url, tries=4, binary=False):
-    """先試 urllib；若因本機缺少 CA 憑證而 SSL 失敗，改用系統 curl。
+def _curl_get(url, binary=False):
+    """用系統 curl 再試一次（含 3 次重試）。回傳 None 代表也失敗。"""
+    try:
+        out = subprocess.run(
+            ["curl", "-sSL", "--compressed", "--max-time", "90",
+             "--retry", "3", "--retry-delay", "5", "--retry-all-errors",
+             "-A", UA, url],
+            check=True, capture_output=True)
+        return out.stdout if binary else out.stdout.decode("utf-8")
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
 
-    （macOS 上以 python.org 安裝的 Python 常沒有憑證鏈，會出現
-      CERTIFICATE_VERIFY_FAILED；curl 使用系統鑰匙圈，兩者都能用時以 urllib 為主。）
+
+def get(url, tries=5, binary=False):
+    """下載並重試；官方站台偶爾回 502/504，不能一次失敗就讓整個每日工作掛掉。
+
+    重試策略（指數退避，最多約 3 分鐘）：
+      1. urllib，timeout 60 秒
+      2. SSL 憑證問題 → 直接用 curl（macOS 自編 Python 常缺憑證鏈）
+      3. 第 2 次之後仍失敗 → 並用 curl 重試（curl 對 5xx 較寬容）
+      4. 全部失敗才丟 RuntimeError，讓 workflow 紅燈（不靜默）
     """
     last = None
+    delay = 5
     for attempt in range(1, tries + 1):
         try:
-            req = urllib.request.Request(url, headers={"User-Agent": UA})
-            with urllib.request.urlopen(req, timeout=45) as resp:
+            req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept-Encoding": "gzip"})
+            with urllib.request.urlopen(req, timeout=60) as resp:
                 raw = resp.read()
+                if resp.headers.get("Content-Encoding") == "gzip":
+                    import gzip
+                    raw = gzip.decompress(raw)
             return raw if binary else raw.decode("utf-8")
         except (urllib.error.URLError, OSError) as e:
             last = e
             # urllib 會把 SSL 錯誤包進 URLError.reason，需一併判斷
             ssl_problem = isinstance(e, ssl.SSLError) or isinstance(getattr(e, "reason", None), ssl.SSLError)
+            print(f"[fetch] 第 {attempt}/{tries} 次失敗：{e}", file=sys.stderr)
             if ssl_problem:
-                try:
-                    out = subprocess.run(["curl", "-sSL", "--max-time", "60", "-A", UA, url],
-                                         check=True, capture_output=True)
-                    return out.stdout if binary else out.stdout.decode("utf-8")
-                except (subprocess.CalledProcessError, FileNotFoundError) as ce:
-                    last = ce
-        time.sleep(min(2 ** attempt, 12))
-    raise RuntimeError(f"下載失敗 {url}：{last}")
+                got = _curl_get(url, binary)
+                if got is not None:
+                    return got
+            elif attempt >= 2:
+                got = _curl_get(url, binary)
+                if got is not None:
+                    print(f"[fetch] 第 {attempt} 次改由 curl 成功", file=sys.stderr)
+                    return got
+        if attempt < tries:
+            time.sleep(delay)
+            delay = min(delay * 2, 45)
+    raise RuntimeError(f"下載失敗 {url}（已重試 {tries} 次）：{last}")
 
 
 def shrink(path):
